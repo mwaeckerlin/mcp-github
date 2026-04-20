@@ -17,6 +17,7 @@ services:
       GITHUB_TOKEN: ${GITHUB_E2E_TOKEN:?GITHUB_E2E_TOKEN is required — export GITHUB_E2E_TOKEN=ghp_...}
       MCP_GITHUB_HOST: 0.0.0.0
       MCP_GITHUB_PORT: 4000
+      NODE_OPTIONS: --use-bundled-ca
     healthcheck:
       test: ["CMD", "/usr/bin/node", "-e", "fetch('http://127.0.0.1:4000/healthz').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
       interval: 5s

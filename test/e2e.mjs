@@ -372,6 +372,169 @@ async function main() {
       }
     }
 
+    // ---------------------------------------- helper: test a REST tool family
+    async function testRestFamily(toolName, operationId, parameters, validateFn) {
+      try {
+        const r = await client.callTool({ name: toolName, arguments: { operationId, parameters } });
+        if (r.isError) {
+          fail(`${toolName} → ${operationId} expected success, got error`, JSON.stringify(r.content));
+        } else {
+          const text = firstTextContent(r.content);
+          if (!text) {
+            fail(`${toolName} → ${operationId} no text content`, JSON.stringify(r));
+          } else {
+            try {
+              const parsed = JSON.parse(text.text);
+              if (validateFn(parsed)) {
+                pass(`${toolName} → ${operationId} succeeded`);
+              } else {
+                fail(`${toolName} → ${operationId} unexpected response shape`, text.text.slice(0, 200));
+              }
+            } catch {
+              fail(`${toolName} → ${operationId} response is not valid JSON`, text.text.slice(0, 200));
+            }
+          }
+        }
+      } catch (e) {
+        fail(`${toolName} → ${operationId} unexpected exception`, e.message);
+      }
+    }
+
+    // ------------------------------------------- github_repositories_rest
+    // POSITIVE: Must return repository metadata for a known public repo.
+    await testRestFamily(
+      "github_repositories_rest",
+      "repos/get",
+      { owner: "octocat", repo: "Hello-World" },
+      (p) => typeof p.data?.id === "number" && p.data?.name === "Hello-World"
+    );
+
+    // ------------------------------------------- github_branches_rest
+    // POSITIVE: Must list branches for a known public repo.
+    await testRestFamily(
+      "github_branches_rest",
+      "repos/list-branches",
+      { owner: "octocat", repo: "Hello-World", per_page: 1 },
+      (p) => p.status === 200 && Array.isArray(p.data)
+    );
+
+    // ------------------------------------------- github_commits_rest
+    // POSITIVE: Must list commits for a known public repo.
+    await testRestFamily(
+      "github_commits_rest",
+      "repos/list-commits",
+      { owner: "octocat", repo: "Hello-World", per_page: 1 },
+      (p) => p.status === 200 && Array.isArray(p.data) && p.data.length > 0
+    );
+
+    // ------------------------------------------- github_git_data_rest
+    // POSITIVE: Must resolve a git ref from a known public repo.
+    await testRestFamily(
+      "github_git_data_rest",
+      "git/get-ref",
+      { owner: "octocat", repo: "Hello-World", ref: "heads/master" },
+      (p) => typeof p.data?.ref === "string" && p.data.ref.startsWith("refs/")
+    );
+
+    // ------------------------------------------- github_pull_requests_rest
+    // POSITIVE: Must list pull requests (possibly empty) for a known public repo.
+    await testRestFamily(
+      "github_pull_requests_rest",
+      "pulls/list",
+      { owner: "octocat", repo: "Hello-World", state: "all", per_page: 1 },
+      (p) => p.status === 200 && Array.isArray(p.data)
+    );
+
+    // ------------------------------------------- github_issues_rest
+    // POSITIVE: Must list issues (possibly empty) for a known public repo.
+    await testRestFamily(
+      "github_issues_rest",
+      "issues/list-for-repo",
+      { owner: "octocat", repo: "Hello-World", per_page: 1 },
+      (p) => p.status === 200 && Array.isArray(p.data)
+    );
+
+    // ------------------------------------------- github_labels_milestones_rest
+    // POSITIVE: Must list labels for a known public repo.
+    await testRestFamily(
+      "github_labels_milestones_rest",
+      "issues/list-labels-for-repo",
+      { owner: "octocat", repo: "Hello-World", per_page: 1 },
+      (p) => p.status === 200 && Array.isArray(p.data)
+    );
+
+    // ------------------------------------------- github_releases_tags_rest
+    // POSITIVE: Must list releases (possibly empty) for a known public repo.
+    await testRestFamily(
+      "github_releases_tags_rest",
+      "repos/list-releases",
+      { owner: "octocat", repo: "Hello-World", per_page: 1 },
+      (p) => p.status === 200 && Array.isArray(p.data)
+    );
+
+    // ------------------------------------------- github_actions_workflows_rest
+    // POSITIVE: Must list workflows for this repository (which has GitHub Actions workflows).
+    await testRestFamily(
+      "github_actions_workflows_rest",
+      "actions/list-repo-workflows",
+      { owner: "mwaeckerlin", repo: "mcp-github", per_page: 1 },
+      (p) => p.status === 200 && typeof p.data?.total_count === "number" && Array.isArray(p.data?.workflows)
+    );
+
+    // ------------------------------------------- github_checks_status_rest
+    // POSITIVE: Must return the combined commit status for a known public repo ref.
+    await testRestFamily(
+      "github_checks_status_rest",
+      "repos/get-combined-status-for-ref",
+      { owner: "octocat", repo: "Hello-World", ref: "master" },
+      (p) => p.status === 200 && typeof p.data?.state === "string"
+    );
+
+    // ------------------------------------------- github_discussions_projects_rest
+    // POSITIVE: Must list classic projects (possibly empty) for a known public repo.
+    await testRestFamily(
+      "github_discussions_projects_rest",
+      "projects/list-for-repo",
+      { owner: "octocat", repo: "Hello-World", per_page: 1 },
+      (p) => p.status === 200 && Array.isArray(p.data)
+    );
+
+    // ------------------------------------------- github_notifications_reactions_rest
+    // POSITIVE: Must list public GitHub events (no auth required for public events).
+    await testRestFamily(
+      "github_notifications_reactions_rest",
+      "activity/list-public-events",
+      { per_page: 1 },
+      (p) => p.status === 200 && Array.isArray(p.data)
+    );
+
+    // ------------------------------------------- github_webhooks_deployments_rest
+    // POSITIVE: Must list deployments (possibly empty) for a known public repo.
+    await testRestFamily(
+      "github_webhooks_deployments_rest",
+      "repos/list-deployments",
+      { owner: "octocat", repo: "Hello-World", per_page: 1 },
+      (p) => p.status === 200 && Array.isArray(p.data)
+    );
+
+    // ------------------------------------------- github_codespaces_rest
+    // POSITIVE: Must return codespace list for the authenticated user (possibly empty).
+    await testRestFamily(
+      "github_codespaces_rest",
+      "codespaces/list-for-authenticated-user",
+      { per_page: 1 },
+      (p) => p.status === 200 && typeof p.data?.total_count === "number"
+    );
+
+    // ------------------------------------------- github_rest_misc
+    // POSITIVE: Must return rate-limit info for the authenticated user.
+    await testRestFamily(
+      "github_rest_misc",
+      "rate-limit/get",
+      {},
+      (p) => p.status === 200 && typeof p.data?.resources === "object"
+    );
+
     // ----------------------------------------------- negative: unknown tool
     // NEGATIVE: The MCP gateway must reject calls to tool names not in its allowlist.
     try {
