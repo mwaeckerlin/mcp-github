@@ -473,7 +473,7 @@ async function main() {
     );
 
     // ------------------------------------------- github_actions_workflows_rest
-    // POSITIVE: Must list workflows for this repository (which has GitHub Actions workflows).
+    // POSITIVE: Must list workflows for the mcp-github repository.
     await testRestFamily(
       "github_actions_workflows_rest",
       "actions/list-repo-workflows",
