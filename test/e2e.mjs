@@ -491,11 +491,11 @@ async function main() {
     );
 
     // ------------------------------------------- github_discussions_projects_rest
-    // POSITIVE: Must list classic projects (possibly empty) for a known public repo.
+    // POSITIVE: Must list Projects v2 for the github org (possibly empty; requires read:project scope).
     await testRestFamily(
       "github_discussions_projects_rest",
-      "projects/list-for-repo",
-      { owner: "octocat", repo: "Hello-World", per_page: 1 },
+      "projects/list-for-org",
+      { org: "github", per_page: 1 },
       (p) => p.status === 200 && Array.isArray(p.data)
     );
 

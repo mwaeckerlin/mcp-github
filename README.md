@@ -129,6 +129,41 @@ Each REST family tool takes:
 - **Client configuration** only tells the sandbox where MCP lives.
 - **Tool-call parameters** are per-invocation validated `arguments` and cannot override server auth/config.
 
+## Test Token Requirements and Risks
+
+### Required `GITHUB_E2E_TOKEN` scopes
+
+Run the E2E test suite with:
+
+```bash
+export GITHUB_E2E_TOKEN=ghp_...
+npm test
+```
+
+Minimum scopes required for all tests to pass:
+
+| Scope | Why |
+|---|---|
+| `read:user` | `users/get-authenticated` and GraphQL `viewer` queries |
+| `public_repo` | Actions workflow listing on public repositories |
+| `read:project` | GitHub Projects v2 listing (`projects/list-for-org`) |
+| `codespace` or `codespace:read` | `codespaces/list-for-authenticated-user` |
+
+> **Note on public endpoints:** GitHub's API returns HTTP 401 if you supply *any* token that is invalid or expired, even for public-data endpoints. Always use a fresh, valid token.
+
+### What the tests do to your GitHub account
+
+**All E2E tests are strictly read-only.** They only call `GET` endpoints. No data is created, modified, or deleted. Specifically:
+
+- No repositories, issues, PRs, or comments are created.
+- No webhooks, deployments, or labels are written.
+- No organization settings are changed.
+- No starred repos, notifications, or subscriptions are altered.
+- Codespace listing only reads; no codespace is started or stopped.
+- Rate-limit info is read (counts against your API quota but does not change any resource).
+
+**Risk assessment:** There is no risk of data loss or unintended side-effects regardless of what scopes your token carries. Even a full-permission `repo` + `admin:org` token will not cause any mutations because the tests only use read operations.
+
 ## Installation and Usage
 
 ```bash
