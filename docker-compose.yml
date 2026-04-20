@@ -1,0 +1,9 @@
+services:
+  mcp-github:
+    build: .
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN:?set GITHUB_TOKEN}
+      MCP_GITHUB_HOST: 0.0.0.0
+      MCP_GITHUB_PORT: 4000
+    ports:
+      - "4000:4000"
