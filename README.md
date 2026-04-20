@@ -144,35 +144,28 @@ The token is set server-side only (`GITHUB_TOKEN` in the `mcp-github` container)
 
 #### Fine-grained Personal Access Token (recommended)
 
-Create a fine-grained PAT at <https://github.com/settings/tokens?type=beta> with the following permissions.
-See the [GitHub docs](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens) for the full reference.
+Create a fine-grained PAT at <https://github.com/settings/tokens?type=beta>.
+See the [GitHub fine-grained PAT permission reference](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens) for the full list.
 
-**Repository access:** Select *"All repositories"* (needed because the tests access public repos you don't own, e.g. `octocat/Hello-World`).
+**Repository access:** Select *"All repositories"* or *"Public Repositories"* — all repository tests access public repos (`octocat/Hello-World`, `mwaeckerlin/mcp-github`), which the GitHub API allows with no repository permission at all.
+
+The only two permissions actually required by the E2E tests are:
 
 **Repository permissions:**
 
 | Permission | Access | Why |
 |---|---|---|
-| Actions | Read | `actions/list-repo-workflows` |
-| Commit statuses | Read | `repos/get-combined-status-for-ref` |
-| Contents | Read | `repos/list-commits`, `git/get-ref`, `repos/list-releases`, `repos/list-branches` |
-| Deployments | Read | `repos/list-deployments` |
-| Issues | Read | `issues/list-for-repo`, `issues/list-labels-for-repo` |
-| Metadata | Read | `repos/get` and all other repo metadata (always required) |
-| Pull requests | Read | `pulls/list` |
+| Codespaces | Read | `codespaces/list-for-authenticated-user` (`GET /user/codespaces`) reads private user data and requires this permission. Confirmed in [GitHub docs](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens#repository-permissions-for-codespaces). |
 
-**Account permissions:**
+**Organization permissions:**
 
 | Permission | Access | Why |
 |---|---|---|
-| Account information | Read | `users/get-authenticated`, GraphQL `viewer { login }` |
-| Codespaces | Read | `codespaces/list-for-authenticated-user` |
+| Projects | Read | `projects/list-for-org` (`GET /orgs/{org}/projects`) on the `github` org. Confirmed in [GitHub docs](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens#organization-permissions-for-projects). |
 
-**Organization permissions** (set on the org your token belongs to, e.g. your personal account's org):
-
-| Permission | Access | Why |
-|---|---|---|
-| Projects | Read | `projects/list-for-org` |
+**No other permissions are needed** because:
+- `users/get-authenticated` and GraphQL `viewer { login }`: *"The fine-grained token does not require any permissions"* (see [GitHub docs](https://docs.github.com/en/rest/users/users#get-the-authenticated-user--fine-grained-access-tokens)).
+- All remaining tests access only public repositories (`octocat/Hello-World`, `mwaeckerlin/mcp-github`). GitHub's API explicitly states that endpoints for repos, branches, commits, refs, releases, pull requests, issues, labels, deployments, actions/workflows, and commit statuses *"can be used without authentication or the aforementioned permissions if only public resources are requested"*.
 
 #### Classic Personal Access Token
 
@@ -180,12 +173,10 @@ If you use a classic PAT (legacy), grant these scopes:
 
 | Scope | Why |
 |---|---|
-| `read:user` | `users/get-authenticated` and GraphQL `viewer` |
-| `repo` (or `public_repo` for public repos only) | repository, branch, commit, PR, issue, label, release, deployment, status, and Actions endpoints |
+| `repo` (or `public_repo` for public repos only) | `codespaces/list-for-authenticated-user` and all repo endpoints |
 | `read:project` | `projects/list-for-org` |
-| `codespace` | `codespaces/list-for-authenticated-user` |
 
-> **Note on public endpoints:** GitHub's API returns HTTP 401 if you supply *any* token that is invalid or expired, even for public-data endpoints (search, public events, rate-limit, etc.). Always use a fresh, valid token.
+> **Note:** GitHub's API returns HTTP 401 if you supply *any* token that is invalid or expired, even for public-data endpoints. Always use a fresh, valid token.
 
 ### What the tests do to your GitHub account
 
