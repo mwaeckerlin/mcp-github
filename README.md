@@ -131,25 +131,61 @@ Each REST family tool takes:
 
 ## Test Token Requirements and Risks
 
-### Required `GITHUB_E2E_TOKEN` scopes
+### Required `GITHUB_E2E_TOKEN` permissions
 
 Run the E2E test suite with:
 
 ```bash
 export GITHUB_E2E_TOKEN=ghp_...
-npm test
+cd test && docker compose up
 ```
 
-Minimum scopes required for all tests to pass:
+The token is set server-side only (`GITHUB_TOKEN` in the `mcp-github` container). The `test-client` container never sees it.
+
+#### Fine-grained Personal Access Token (recommended)
+
+Create a fine-grained PAT at <https://github.com/settings/tokens?type=beta> with the following permissions.
+See the [GitHub docs](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens) for the full reference.
+
+**Repository access:** Select *"All repositories"* (needed because the tests access public repos you don't own, e.g. `octocat/Hello-World`).
+
+**Repository permissions:**
+
+| Permission | Access | Why |
+|---|---|---|
+| Actions | Read | `actions/list-repo-workflows` |
+| Commit statuses | Read | `repos/get-combined-status-for-ref` |
+| Contents | Read | `repos/list-commits`, `git/get-ref`, `repos/list-releases`, `repos/list-branches` |
+| Deployments | Read | `repos/list-deployments` |
+| Issues | Read | `issues/list-for-repo`, `issues/list-labels-for-repo` |
+| Metadata | Read | `repos/get` and all other repo metadata (always required) |
+| Pull requests | Read | `pulls/list` |
+
+**Account permissions:**
+
+| Permission | Access | Why |
+|---|---|---|
+| Account information | Read | `users/get-authenticated`, GraphQL `viewer { login }` |
+| Codespaces | Read | `codespaces/list-for-authenticated-user` |
+
+**Organization permissions** (set on the org your token belongs to, e.g. your personal account's org):
+
+| Permission | Access | Why |
+|---|---|---|
+| Projects | Read | `projects/list-for-org` |
+
+#### Classic Personal Access Token
+
+If you use a classic PAT (legacy), grant these scopes:
 
 | Scope | Why |
 |---|---|
-| `read:user` | `users/get-authenticated` and GraphQL `viewer` queries |
-| `public_repo` | Actions workflow listing on public repositories |
-| `read:project` | GitHub Projects v2 listing (`projects/list-for-org`) |
-| `codespace` or `codespace:read` | `codespaces/list-for-authenticated-user` |
+| `read:user` | `users/get-authenticated` and GraphQL `viewer` |
+| `repo` (or `public_repo` for public repos only) | repository, branch, commit, PR, issue, label, release, deployment, status, and Actions endpoints |
+| `read:project` | `projects/list-for-org` |
+| `codespace` | `codespaces/list-for-authenticated-user` |
 
-> **Note on public endpoints:** GitHub's API returns HTTP 401 if you supply *any* token that is invalid or expired, even for public-data endpoints. Always use a fresh, valid token.
+> **Note on public endpoints:** GitHub's API returns HTTP 401 if you supply *any* token that is invalid or expired, even for public-data endpoints (search, public events, rate-limit, etc.). Always use a fresh, valid token.
 
 ### What the tests do to your GitHub account
 
@@ -162,7 +198,7 @@ Minimum scopes required for all tests to pass:
 - Codespace listing only reads; no codespace is started or stopped.
 - Rate-limit info is read (counts against your API quota but does not change any resource).
 
-**Risk assessment:** There is no risk of data loss or unintended side-effects regardless of what scopes your token carries. Even a full-permission `repo` + `admin:org` token will not cause any mutations because the tests only use read operations.
+**Risk assessment:** There is no risk of data loss or unintended side-effects regardless of what permissions your token carries. Even a token with full write permissions will not cause any mutations because the tests only use read operations.
 
 ## Installation and Usage
 
