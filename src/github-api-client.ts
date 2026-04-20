@@ -61,7 +61,7 @@ export class GitHubApiClient {
   }
 }
 
-function normalizeGitHubError(error: unknown): McpError {
+export function normalizeGitHubError(error: unknown): McpError {
   const rawMessage = error instanceof Error ? error.message : String(error);
   const message = redactSecrets(rawMessage);
   const maybeStatus = (error as { status?: unknown } | undefined)?.status;
@@ -82,8 +82,10 @@ function normalizeGitHubError(error: unknown): McpError {
   return new McpError(ErrorCode.InternalError, `GitHub API request failed: ${message}`);
 }
 
-function redactSecrets(value: string): string {
+export function redactSecrets(value: string): string {
   return value
     .replace(/(gh[opsur]_[A-Za-z0-9_]+)/g, "[redacted-token]")
     .replace(/(github_pat_[A-Za-z0-9_]+)/g, "[redacted-token]");
 }
+
+export const __testing = { normalizeGitHubError, redactSecrets };

@@ -1,0 +1,45 @@
+services:
+  mcp-github:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: mwaeckerlin/mcp-github
+    # SECURITY: mcp-github sits on one bridge network toward the test-client.
+    # The GITHUB_TOKEN is only present as an env var in this container and is
+    # never transmitted to the test-client container or accessible from it.
+    # All GitHub API calls go over external HTTPS (not through test-client's
+    # network segment) so the token cannot be observed by the test client.
+    networks:
+      - mcp-github-test-client
+    environment:
+      # GITHUB_TOKEN must be a real token with at least read:user scope.
+      # Set GITHUB_E2E_TOKEN before running: export GITHUB_E2E_TOKEN=ghp_...
+      GITHUB_TOKEN: ${GITHUB_E2E_TOKEN:?GITHUB_E2E_TOKEN is required — export GITHUB_E2E_TOKEN=ghp_...}
+      MCP_GITHUB_HOST: 0.0.0.0
+      MCP_GITHUB_PORT: 4000
+    healthcheck:
+      test: ["CMD", "/usr/bin/node", "-e", "fetch('http://127.0.0.1:4000/healthz').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  test-client:
+    build:
+      context: ..
+      dockerfile: test/Dockerfile
+    # test-client is on the mcp-github-test-client network only.
+    # It can reach mcp-github by container DNS name (mcp-github:4000)
+    # but has no route to the external internet and no access to GITHUB_TOKEN.
+    networks:
+      - mcp-github-test-client
+    environment:
+      MCP_GITHUB_URL: http://mcp-github:4000
+    depends_on:
+      mcp-github:
+        condition: service_healthy
+
+# The mcp-github-test-client bridge network carries only MCP traffic between
+# test-client and mcp-github.  The GITHUB_TOKEN is confined to the mcp-github
+# container env and never transmitted on this network segment.
+networks:
+  mcp-github-test-client:
