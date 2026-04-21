@@ -149,32 +149,24 @@ See the [GitHub fine-grained PAT permission reference](https://docs.github.com/e
 
 **Repository access:** Select *"All repositories"* or *"Public Repositories"* — all repository tests access public repos (`octocat/Hello-World`, `mwaeckerlin/mcp-github`), which the GitHub API allows with no repository permission at all.
 
-The only two permissions actually required by the E2E tests are:
-
-**Repository permissions:**
+The only permission actually required by the E2E tests is one **Repository permission:**
 
 | Permission | Access | Why |
 |---|---|---|
-| Codespaces | Read | `codespaces/list-for-authenticated-user` (`GET /user/codespaces`) reads private user data and requires this permission. Confirmed in [GitHub docs](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens#repository-permissions-for-codespaces). |
-
-**Organization permissions:**
-
-| Permission | Access | Why |
-|---|---|---|
-| Projects | Read | `projects/list-for-org` (`GET /orgs/{org}/projects`) on the `github` org. Confirmed in [GitHub docs](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens#organization-permissions-for-projects). |
+| Codespaces | Read | `codespaces/list-for-authenticated-user` (`GET /user/codespaces`) reads the authenticated user's own private codespace list. GitHub docs confirm this requires [Repository permission "Codespaces" (read)](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens#repository-permissions-for-codespaces). |
 
 **No other permissions are needed** because:
-- `users/get-authenticated` and GraphQL `viewer { login }`: *"The fine-grained token does not require any permissions"* (see [GitHub docs](https://docs.github.com/en/rest/users/users#get-the-authenticated-user--fine-grained-access-tokens)).
-- All remaining tests access only public repositories (`octocat/Hello-World`, `mwaeckerlin/mcp-github`). GitHub's API explicitly states that endpoints for repos, branches, commits, refs, releases, pull requests, issues, labels, deployments, actions/workflows, and commit statuses *"can be used without authentication or the aforementioned permissions if only public resources are requested"*.
+- `users/get-authenticated` and GraphQL `viewer { login }`: *"The fine-grained token does not require any permissions"* ([GitHub docs](https://docs.github.com/en/rest/users/users#get-the-authenticated-user--fine-grained-access-tokens)).
+- All remaining tests access only public repositories (`octocat/Hello-World`, `mwaeckerlin/mcp-github`) and public org data (`github` org). GitHub's API explicitly states these endpoints *"can be used without authentication or the aforementioned permissions if only public resources are requested"*.
+- **Note on Projects:** `projects/list-for-org` (`GET /orgs/{org}/projectsV2`) is tested against the public `github` org and works without any permission. The GitHub UI only shows organization permissions when the resource owner is an organization — personal account tokens have no organization permission section at all.
 
 #### Classic Personal Access Token
 
-If you use a classic PAT (legacy), grant these scopes:
+If you use a classic PAT (legacy), the only scope needed is:
 
 | Scope | Why |
 |---|---|
-| `repo` (or `public_repo` for public repos only) | `codespaces/list-for-authenticated-user` and all repo endpoints |
-| `read:project` | `projects/list-for-org` |
+| `codespace` | `codespaces/list-for-authenticated-user` |
 
 > **Note:** GitHub's API returns HTTP 401 if you supply *any* token that is invalid or expired, even for public-data endpoints. Always use a fresh, valid token.
 

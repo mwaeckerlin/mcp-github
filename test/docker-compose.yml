@@ -13,11 +13,12 @@ services:
       - mcp-github-test-client
     environment:
       # GITHUB_TOKEN must be a valid fine-grained or classic PAT.
-      # Fine-grained PAT: Repository permissions: "Codespaces" (read).
-      #   Organization permissions: "Projects" (read).
-      #   No other permissions needed — all repo tests use public repos.
-      #   users/get-authenticated needs zero permissions (GitHub docs confirmed).
-      # Classic PAT alternative: repo (or public_repo) + read:project.
+      # Fine-grained PAT (personal account as resource owner):
+      #   Repository permission: "Codespaces" (read) — needed for GET /user/codespaces.
+      #   No organization permissions exist for personal-account tokens.
+      #   All other tests use public repos/orgs and need zero permissions.
+      #   users/get-authenticated needs zero permissions (confirmed in GitHub docs).
+      # Classic PAT: scope "codespace" only.
       # Set GITHUB_E2E_TOKEN before running: export GITHUB_E2E_TOKEN=github_pat_...
       GITHUB_TOKEN: ${GITHUB_E2E_TOKEN:?GITHUB_E2E_TOKEN is required — export GITHUB_E2E_TOKEN=ghp_...}
       MCP_GITHUB_HOST: 0.0.0.0
