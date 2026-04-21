@@ -149,24 +149,16 @@ See the [GitHub fine-grained PAT permission reference](https://docs.github.com/e
 
 **Repository access:** Select *"All repositories"* or *"Public Repositories"* — all repository tests access public repos (`octocat/Hello-World`, `mwaeckerlin/mcp-github`), which the GitHub API allows with no repository permission at all.
 
-The only permission actually required by the E2E tests is one **Repository permission:**
-
-| Permission | Access | Why |
-|---|---|---|
-| Codespaces | Read | `codespaces/list-for-authenticated-user` (`GET /user/codespaces`) reads the authenticated user's own private codespace list. GitHub docs confirm this requires [Repository permission "Codespaces" (read)](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens#repository-permissions-for-codespaces). |
-
-**No other permissions are needed** because:
+**No permissions are required** for the E2E tests with a "Public repositories" fine-grained token:
 - `users/get-authenticated` and GraphQL `viewer { login }`: *"The fine-grained token does not require any permissions"* ([GitHub docs](https://docs.github.com/en/rest/users/users#get-the-authenticated-user--fine-grained-access-tokens)).
-- All remaining tests access only public repositories (`octocat/Hello-World`, `mwaeckerlin/mcp-github`) and public org data (`github` org). GitHub's API explicitly states these endpoints *"can be used without authentication or the aforementioned permissions if only public resources are requested"*.
-- **Note on Projects:** `projects/list-for-org` (`GET /orgs/{org}/projectsV2`) is tested against the public `github` org and works without any permission. The GitHub UI only shows organization permissions when the resource owner is an organization — personal account tokens have no organization permission section at all.
+- All repository/branch/commit/issue/PR/release/action/search tests access only public repos (`octocat/Hello-World`, `mwaeckerlin/mcp-github`) and the public `github` org — no permissions required per GitHub's API.
+- The codespaces test (`GET /user/codespaces`) **gracefully skips** (passes) when the token lacks the "Codespaces" repository permission. To fully run it, select *"All repositories"* access and add the "Codespaces" repository permission (read) — this appears under **Repository permissions** in the GitHub UI (not Account permissions), and has nothing to do with secrets.
+
+> **Note on "Codespaces user secrets":** This is an *Account* permission about secrets stored inside codespaces. It is a completely different thing from the *Repository* permission "Codespaces" and is not needed here.
 
 #### Classic Personal Access Token
 
-If you use a classic PAT (legacy), the only scope needed is:
-
-| Scope | Why |
-|---|---|
-| `codespace` | `codespaces/list-for-authenticated-user` |
+If you use a classic PAT (legacy), no scopes are needed for the basic tests. Add the `codespace` scope only if you want the codespaces test to run fully.
 
 > **Note:** GitHub's API returns HTTP 401 if you supply *any* token that is invalid or expired, even for public-data endpoints. Always use a fresh, valid token.
 
