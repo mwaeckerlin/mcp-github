@@ -63,17 +63,17 @@ const TOOL_FAMILY_MATCHERS: RestToolFamilyMatcher[] = [
   },
   {
     family: {
-      name: "github_labels_milestones_rest",
-      description: "Label and milestone APIs for repositories and issues."
-    },
-    matches: (operation) => /label|milestone/i.test(operation.operationId)
-  },
-  {
-    family: {
       name: "github_issues_rest",
       description: "Issue APIs including issue comments and issue timeline/event operations."
     },
     matches: (operation) => operation.tags.includes("issues") || operation.operationId.startsWith("issues/")
+  },
+  {
+    family: {
+      name: "github_labels_milestones_rest",
+      description: "Label and milestone APIs for repositories and issues."
+    },
+    matches: (operation) => /label|milestone/i.test(operation.operationId)
   },
   {
     family: {
