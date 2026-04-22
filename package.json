@@ -4,7 +4,7 @@
   "description": "Standalone secure MCP GitHub server with server-side authentication.",
   "main": "dist/server.js",
   "scripts": {
-    "build": "npm run build:doc && tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json",
     "build:doc": "plantuml -tsvg -o doc README.md",
     "build:docker": "docker compose build",
     "test": "tsx --test src/commands.test.ts src/disabled-tools.test.ts src/github-api-client.test.ts src/openapi-operations.test.ts src/readonly-rpc-tools.test.ts src/server.test.ts src/server.integration.test.ts src/skills.test.ts src/tool-families.test.ts src/tools.test.ts src/validation.test.ts && (cd test && docker compose up --build --force-recreate --remove-orphans --abort-on-container-exit --exit-code-from test-client)",
