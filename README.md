@@ -26,8 +26,11 @@ Security properties:
 
 ## Architecture / Deployment Context
 
+![](doc/architecture.svg)
+<details>
+<summary>PlantUML source</summary>
 ```plantuml
-@startuml
+@startuml architecture
 node "Sandbox / Agent" {
   [MCP Client]
 }
@@ -42,6 +45,7 @@ node "GitHub API" {
 [mcp-github] --> [api.github.com] : validated REST + GraphQL
 @enduml
 ```
+</details>
 
 ## Exposed MCP Tools
 

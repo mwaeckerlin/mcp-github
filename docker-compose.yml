@@ -1,6 +1,7 @@
 services:
   mcp-github:
-    build: .
+    build:
+      context: .
     environment:
       GITHUB_TOKEN: ${GITHUB_TOKEN:?set GITHUB_TOKEN}
       MCP_GITHUB_HOST: 0.0.0.0
