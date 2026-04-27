@@ -44,14 +44,34 @@ test("classifyOperationToFamily: pull-request operations (no earlier-matching ke
   }
 });
 
-test("classifyOperationToFamily: issues operations go to github_issues_rest", () => {
+test("classifyOperationToFamily: issues operations (non-label/milestone) go to github_issues_rest", () => {
+  // Label and milestone operations have their own family and take priority over the generic
+  // issues matcher, even if their operationId starts with "issues/".
   const ops = loadRestOperations().filter(
-    (op) => op.tags.includes("issues") || op.operationId.startsWith("issues/")
+    (op) =>
+      (op.tags.includes("issues") || op.operationId.startsWith("issues/")) &&
+      !/label|milestone/i.test(op.operationId)
   );
-  assert.ok(ops.length > 0, "expected at least one issues operation");
+  assert.ok(ops.length > 0, "expected at least one non-label/milestone issues operation");
   for (const op of ops) {
     assert.equal(classifyOperationToFamily(op), "github_issues_rest");
   }
+});
+
+test("classifyOperationToFamily: label and milestone operations go to github_labels_milestones_rest", () => {
+  const labelOps = ["issues/list-labels-for-repo", "issues/get-label", "issues/list-milestones", "issues/get-milestone"];
+  let checked = 0;
+  for (const opId of labelOps) {
+    const op = loadRestOperations().find((o) => o.operationId === opId);
+    if (!op) continue;
+    checked++;
+    assert.equal(
+      classifyOperationToFamily(op),
+      "github_labels_milestones_rest",
+      `expected ${opId} to be in github_labels_milestones_rest`
+    );
+  }
+  assert.ok(checked > 0, "expected at least one known label/milestone operation to be present");
 });
 
 test("classifyOperationToFamily: search operations (no earlier-matching keyword) go to github_search_rest", () => {
