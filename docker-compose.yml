@@ -3,9 +3,6 @@ services:
     build:
       context: .
     environment:
-      GITHUB_TOKEN: ${GITHUB_TOKEN:?set GITHUB_TOKEN}
-      MCP_GITHUB_HOST: 0.0.0.0
-      MCP_GITHUB_PORT: 4000
-      NODE_OPTIONS: --use-bundled-ca
+      GITHUB_TOKEN:
     ports:
       - "4000:4000"

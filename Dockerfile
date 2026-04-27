@@ -10,6 +10,8 @@ RUN NODE_ENV=production npm run build
 
 FROM mwaeckerlin/nodejs as production
 EXPOSE 4000
+ENV MCP_GITHUB_HOST=0.0.0.0 \
+  MCP_GITHUB_PORT=4000
 COPY --from=build /app/dist /app/dist
 COPY --from=modules /app/node_modules node_modules
 HEALTHCHECK --interval=5s --timeout=30s --start-period=10s --retries=60 \
