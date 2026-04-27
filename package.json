@@ -1,0 +1,44 @@
+{
+  "name": "mcp-github",
+  "version": "1.0.0",
+  "description": "Standalone secure MCP GitHub server with server-side authentication.",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "build:doc": "plantuml -tsvg -o doc README.md",
+    "build:docker": "docker compose build",
+    "test": "tsx --test src/commands.test.ts src/disabled-tools.test.ts src/github-api-client.test.ts src/openapi-operations.test.ts src/readonly-rpc-tools.test.ts src/server.test.ts src/server.integration.test.ts src/skills.test.ts src/tool-families.test.ts src/tools.test.ts src/validation.test.ts && (cd test && docker compose up --build --force-recreate --remove-orphans --abort-on-container-exit --exit-code-from test-client)",
+    "start": "docker compose up --build --force-recreate --remove-orphans",
+    "start:daemon": "docker compose up -d --build --force-recreate --remove-orphans",
+    "dev": "tsx src/server.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mwaeckerlin/mcp-github.git"
+  },
+  "keywords": [
+    "mcp",
+    "github",
+    "security",
+    "typescript"
+  ],
+  "author": "",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/mwaeckerlin/mcp-github/issues"
+  },
+  "homepage": "https://github.com/mwaeckerlin/mcp-github#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@octokit/core": "^7.0.6",
+    "@octokit/graphql": "^9.0.3",
+    "@octokit/openapi": "^22.0.0",
+    "@octokit/openapi-types": "^27.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  }
+}
