@@ -16,13 +16,15 @@ export class GitHubApiClient {
   private readonly octokit: Octokit;
   private readonly graphqlWithAuth: typeof graphql;
 
-  constructor(githubToken: string) {
-    this.octokit = new Octokit({ auth: githubToken });
-    this.graphqlWithAuth = graphql.defaults({
-      headers: {
-        authorization: `token ${githubToken}`
-      }
-    });
+  constructor(githubToken?: string) {
+    this.octokit = githubToken ? new Octokit({ auth: githubToken }) : new Octokit();
+    this.graphqlWithAuth = githubToken
+      ? graphql.defaults({
+        headers: {
+          authorization: `token ${githubToken}`
+        }
+      })
+      : graphql;
   }
 
   async callRestByOperationId(operationId: string, parameters: Record<string, unknown>): Promise<RestCallResult> {

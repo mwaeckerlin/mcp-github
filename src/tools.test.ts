@@ -132,11 +132,14 @@ test("listOperationMappings: result is sorted by operationId", () => {
   }
 });
 
-test("listOperationMappings: all results have family and operationId fields", () => {
+test("listOperationMappings: all results include operation metadata", () => {
   const sample = listOperationMappings().slice(0, 50);
   for (const mapping of sample) {
     assert.ok(typeof mapping.operationId === "string" && mapping.operationId.length > 0);
     assert.ok(REST_TOOL_FAMILY_NAMES.includes(mapping.family));
+    assert.ok(typeof mapping.method === "string" && mapping.method.length > 0);
+    assert.ok(typeof mapping.path === "string" && mapping.path.startsWith("/"));
+    assert.ok(Array.isArray(mapping.parameterNames));
   }
 });
 

@@ -27,12 +27,14 @@ test("loadServerConfigFromEnv: defaults host to 0.0.0.0 and port to 4000", () =>
   assert.equal(config.disabledTools.size, 0);
 });
 
-test("loadServerConfigFromEnv: throws when GITHUB_TOKEN is absent", () => {
-  assert.throws(() => loadServerConfigFromEnv({}), /GITHUB_TOKEN/);
+test("loadServerConfigFromEnv: accepts missing GITHUB_TOKEN and marks token as undefined", () => {
+  const config = loadServerConfigFromEnv({});
+  assert.equal(config.githubToken, undefined);
 });
 
-test("loadServerConfigFromEnv: throws when GITHUB_TOKEN is whitespace-only", () => {
-  assert.throws(() => loadServerConfigFromEnv({ GITHUB_TOKEN: "   " }), /GITHUB_TOKEN/);
+test("loadServerConfigFromEnv: accepts whitespace-only GITHUB_TOKEN as undefined", () => {
+  const config = loadServerConfigFromEnv({ GITHUB_TOKEN: "   " });
+  assert.equal(config.githubToken, undefined);
 });
 
 test("loadServerConfigFromEnv: throws when MCP_GITHUB_PORT is non-numeric", () => {

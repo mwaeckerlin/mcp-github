@@ -10,16 +10,26 @@ import { isHttpToolName, loadGatewayConfig, validateHttpToolArguments } from "./
 import { isReadonlyRpcToolName, runReadonlyRpcToolWithArguments } from "./readonly-rpc-tools.js";
 import { isSkillsToolName, runSkillsToolWithArguments } from "./skills.js";
 
+const MISSING_GITHUB_TOKEN_MESSAGE =
+  "GitHub token is not configured, GitHub service is limited";
+
+type ApiClient = Pick<GitHubApiClient, "callRestByOperationId" | "callGraphQl">;
+
 function respondJson(response: ServerResponse, statusCode: number, body: Record<string, unknown>): void {
   response.writeHead(statusCode, { "Content-Type": "application/json" });
   response.end(JSON.stringify(body));
 }
 
+function createApiClient(githubToken: string | undefined): ApiClient {
+  return new GitHubApiClient(githubToken);
+}
+
 export async function runToolWithArguments(
   toolName: string,
   toolArguments: unknown,
-  apiClient: Pick<GitHubApiClient, "callRestByOperationId" | "callGraphQl">,
-  disabledTools: ReadonlySet<string>
+  apiClient: ApiClient,
+  disabledTools: ReadonlySet<string>,
+  githubTokenConfigured: boolean = true
 ): Promise<string> {
   if (isToolDisabled(toolName, disabledTools)) {
     throw new McpError(ErrorCode.InvalidParams, `Tool disabled by DISABLE_TOOLS: ${toolName}`);
@@ -27,10 +37,17 @@ export async function runToolWithArguments(
 
   if (isHttpToolName(toolName)) {
     const { family, limit, offset } = validateHttpToolArguments(toolName, toolArguments);
-    const mappings = listOperationMappings(family).slice(offset, offset + limit);
+    let allMappings = listOperationMappings(family);
+
+    // Without token, only allow read-only GET/HEAD operations
+    if (!githubTokenConfigured) {
+      allMappings = allMappings.filter((op) => op.method === "GET" || op.method === "HEAD");
+    }
+
+    const mappings = allMappings.slice(offset, offset + limit);
     return JSON.stringify(
       {
-        total: listOperationMappings(family).length,
+        total: allMappings.length,
         count: mappings.length,
         offset,
         limit,
@@ -61,7 +78,7 @@ export async function runToolWithArguments(
   throw new McpError(ErrorCode.InvalidParams, `Unknown tool: ${toolName}`);
 }
 
-function createMcpServer(apiClient: GitHubApiClient, disabledTools: ReadonlySet<string>): Server {
+function createMcpServer(apiClient: ApiClient, disabledTools: ReadonlySet<string>, githubTokenConfigured: boolean): Server {
   const server = new Server(
     {
       name: "mcp-github",
@@ -80,7 +97,7 @@ function createMcpServer(apiClient: GitHubApiClient, disabledTools: ReadonlySet<
     const toolName = request.params.name;
 
     try {
-      const output = await runToolWithArguments(toolName, request.params.arguments, apiClient, disabledTools);
+      const output = await runToolWithArguments(toolName, request.params.arguments, apiClient, disabledTools, githubTokenConfigured);
       return {
         content: [{ type: "text", text: output }]
       };
@@ -109,13 +126,23 @@ function createMcpServer(apiClient: GitHubApiClient, disabledTools: ReadonlySet<
 async function handleMcpHttpRequest(
   request: IncomingMessage,
   response: ServerResponse,
-  apiClient: GitHubApiClient,
-  disabledTools: ReadonlySet<string>
+  apiClient: ApiClient,
+  disabledTools: ReadonlySet<string>,
+  githubTokenConfigured: boolean
 ): Promise<void> {
   const requestUrl = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
 
   if (requestUrl.pathname === "/healthz" && request.method === "GET") {
-    respondJson(response, 200, { ok: true, status: "ready" });
+    if (githubTokenConfigured) {
+      respondJson(response, 200, { ok: true, status: "ready", githubTokenConfigured: true });
+    } else {
+      respondJson(response, 200, {
+        ok: true,
+        status: "degraded",
+        githubTokenConfigured: false,
+        message: MISSING_GITHUB_TOKEN_MESSAGE
+      });
+    }
     return;
   }
 
@@ -127,7 +154,7 @@ async function handleMcpHttpRequest(
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined
   });
-  const server = createMcpServer(apiClient, disabledTools);
+  const server = createMcpServer(apiClient, disabledTools, githubTokenConfigured);
 
   try {
     await server.connect(transport);
@@ -141,10 +168,15 @@ async function handleMcpHttpRequest(
 export async function main(): Promise<void> {
   const config = loadGatewayConfig();
   const disabledTools = loadDisabledToolsFromEnv();
-  const apiClient = new GitHubApiClient(config.githubToken);
+  const apiClient = createApiClient(config.githubToken);
+  const githubTokenConfigured = Boolean(config.githubToken);
+
+  if (!githubTokenConfigured) {
+    console.warn(`Warning: ${MISSING_GITHUB_TOKEN_MESSAGE}`);
+  }
 
   const httpServer = createServer((request, response) => {
-    void handleMcpHttpRequest(request, response, apiClient, disabledTools).catch((error: unknown) => {
+    void handleMcpHttpRequest(request, response, apiClient, disabledTools, githubTokenConfigured).catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`HTTP request handling failed: ${message}`);
 

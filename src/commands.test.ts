@@ -37,12 +37,14 @@ test("loadGatewayConfig: defaults port to 4000 and host to 0.0.0.0", () => {
   assert.equal(config.host, "0.0.0.0");
 });
 
-test("loadGatewayConfig: throws when GITHUB_TOKEN is missing", () => {
-  assert.throws(() => loadGatewayConfig({}), /GITHUB_TOKEN/);
+test("loadGatewayConfig: accepts missing GITHUB_TOKEN and marks token as undefined", () => {
+  const config = loadGatewayConfig({});
+  assert.equal(config.githubToken, undefined);
 });
 
-test("loadGatewayConfig: throws when GITHUB_TOKEN is empty string", () => {
-  assert.throws(() => loadGatewayConfig({ GITHUB_TOKEN: "   " }), /GITHUB_TOKEN/);
+test("loadGatewayConfig: accepts blank GITHUB_TOKEN as undefined", () => {
+  const config = loadGatewayConfig({ GITHUB_TOKEN: "   " });
+  assert.equal(config.githubToken, undefined);
 });
 
 test("loadGatewayConfig: throws when MCP_GITHUB_PORT is non-numeric", () => {

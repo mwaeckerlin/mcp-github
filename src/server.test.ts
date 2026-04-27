@@ -245,3 +245,31 @@ test("partially-matching tool name returns McpError", async () => {
   );
 });
 
+test("without token, listOperationMappings filters to only GET/HEAD operations", async () => {
+  const allOpsOutput = await runToolWithArguments(
+    "github_rest_list_operations",
+    { limit: 1000 },
+    mockedApiClient,
+    new Set(),
+    true // token configured
+  );
+  const allOps = JSON.parse(allOpsOutput) as { total: number; operations: Array<{ method: string }> };
+
+  const limitedOpsOutput = await runToolWithArguments(
+    "github_rest_list_operations",
+    { limit: 1000 },
+    mockedApiClient,
+    new Set(),
+    false // no token
+  );
+  const limitedOps = JSON.parse(limitedOpsOutput) as { total: number; operations: Array<{ method: string }> };
+
+  // Without token should have fewer operations
+  assert.ok(limitedOps.total < allOps.total, `Should filter out POST/PUT/PATCH/DELETE without token. With token: ${allOps.total} ops, without token: ${limitedOps.total} ops`);
+
+  // All remaining operations should be GET or HEAD
+  for (const op of limitedOps.operations) {
+    assert.ok(op.method === "GET" || op.method === "HEAD", `Should only have GET or HEAD, got ${op.method}`);
+  }
+});
+

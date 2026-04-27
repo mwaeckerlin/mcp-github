@@ -9,9 +9,11 @@ Secure MCP bridge for GitHub where credentials are held only on the server side.
 
 ## Local installation (deterministic)
 
+Use these rules when told to install this skill locally.
+
 - **Source file in this repository:** `<repository-root>/SKILL.md`
 - **Canonical installed skill file (active location):** `~/.openclaw/workspace/skills/mcp-github/SKILL.md`
-- Any other copied path is not an active installation.
+- **Any other copied file path is not an installation** (for example, temporary files or copies elsewhere in the workspace do not activate this skill).
 
 Installation procedure:
 
@@ -24,7 +26,140 @@ Installation procedure:
 
 ## First step
 
-Always call `github_rest_list_operations` first to confirm operation IDs and tool-family mapping.
+Always run this preflight sequence:
+
+1. Check `GET /healthz`.
+2. If `status` is `degraded`, stop and request server-side `GITHUB_TOKEN` configuration.
+3. Call `github_rest_list_operations` before any REST family call.
+
+Do not call REST/GraphQL execution tools before preflight succeeds.
+
+## MCP transport preflight (required)
+
+For MCP HTTP requests, the client must send an `Accept` header that allows both:
+
+- `application/json`
+- `text/event-stream`
+
+If either is missing, the MCP transport can reject calls.
+
+## Selector requirements (common traps)
+
+Use identifying selectors explicitly for these calls:
+
+- Any `*_rest` family tool: provide `operationId` and ensure it belongs to that family.
+- `github_graphql`: provide `operationName` and ensure the same operation name appears in `query`.
+
+## Parameter discovery workflow (how to know all parameters)
+
+For each REST operation, discover parameters in this order:
+
+1. Call `github_rest_list_operations` with the target family.
+2. Select the returned operation entry.
+3. Use operation metadata from that entry:
+   - `operationId`
+   - `method`
+   - `path`
+   - `parameterNames`
+4. Build the `parameters` object for the matching family tool.
+
+`parameterNames` comes from GitHub OpenAPI metadata (`@octokit/openapi`) and is the canonical parameter name list exposed by this MCP.
+
+## Example: create issue in mwaeckerlin/mcp-github
+
+Step A - discover operation:
+
+Tool: `github_rest_list_operations`
+
+```json
+{
+  "family": "github_issues_rest",
+  "limit": 200,
+  "offset": 0
+}
+```
+
+Find operation `issues/create` and inspect `parameterNames`.
+
+Step B - execute:
+
+Tool: `github_issues_rest`
+
+```json
+{
+  "operationId": "issues/create",
+  "parameters": {
+    "owner": "mwaeckerlin",
+    "repo": "mcp-github",
+    "title": "Example issue via MCP",
+    "body": "Created through mcp-github using github_issues_rest.",
+    "labels": ["bug"]
+  }
+}
+```
+
+Step C - verify:
+
+Tool: `github_issues_rest`
+
+```json
+{
+  "operationId": "issues/list-for-repo",
+  "parameters": {
+    "owner": "mwaeckerlin",
+    "repo": "mcp-github",
+    "state": "open",
+    "per_page": 30
+  }
+}
+```
+
+## More practical examples
+
+Get authenticated user:
+
+Tool: `github_users_orgs_teams_rest`
+
+```json
+{
+  "operationId": "users/get-authenticated",
+  "parameters": {}
+}
+```
+
+Create issue comment:
+
+Tool: `github_issues_rest`
+
+```json
+{
+  "operationId": "issues/create-comment",
+  "parameters": {
+    "owner": "mwaeckerlin",
+    "repo": "mcp-github",
+    "issue_number": 1,
+    "body": "Comment added via MCP"
+  }
+}
+```
+
+Create pull request:
+
+Tool: `github_pull_requests_rest`
+
+```json
+{
+  "operationId": "pulls/create",
+  "parameters": {
+    "owner": "mwaeckerlin",
+    "repo": "mcp-github",
+    "title": "Example PR via MCP",
+    "head": "feature-branch",
+    "base": "main",
+    "body": "Created through mcp-github"
+  }
+}
+```
 
 ## Tool selection guide
 
@@ -59,6 +194,7 @@ Always call `github_rest_list_operations` first to confirm operation IDs and too
 | Error contains | Cause | Action |
 |---|---|---|
 | `operationId ... is not allowlisted` | Wrong operation/tool family combination | List operations and pick matching family |
+| `GitHub token is not configured on the MCP server` | Server runs without `GITHUB_TOKEN` | Configure server-side `GITHUB_TOKEN` and retry |
 | `GitHub authentication or permission error` | Bad token or missing scopes | Fix `GITHUB_TOKEN` scopes on server side |
 | `GitHub resource not found or not accessible` | Missing access rights or wrong identifiers | Validate org/repo/path and token grants |
 | `Tool disabled by DISABLE_TOOLS` | Server-side tool restriction | Use enabled tool or update server config |
@@ -70,3 +206,4 @@ Always call `github_rest_list_operations` first to confirm operation IDs and too
 - Use only allowlisted MCP tools with validated inputs.
 - Keep list/pagination requests bounded and explicit.
 - Use GraphQL only when REST mapping is insufficient.
+- Always run preflight (`/healthz` + `github_rest_list_operations`) before mutation-style REST calls.

@@ -7,7 +7,7 @@ const OPERATION_REGISTRY = new Map(loadRestOperations().map((operation) => [oper
 const PAGE_SIZE_KEYS = new Set(["per_page", "perPage", "first", "last", "limit", "pageSize"]);
 
 export interface ServerConfig {
-  githubToken: string;
+  githubToken?: string;
   host: string;
   port: number;
   disabledTools: ReadonlySet<string>;
@@ -56,9 +56,6 @@ function parseDisabledTools(disabledToolsValue: string | undefined): ReadonlySet
 
 export function loadServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   const githubToken = env.GITHUB_TOKEN?.trim();
-  if (!githubToken) {
-    throw new Error("GITHUB_TOKEN is required and must be non-empty");
-  }
 
   const host = env.MCP_GITHUB_HOST?.trim() || "0.0.0.0";
   const rawPort = env.MCP_GITHUB_PORT?.trim() || "4000";
@@ -70,7 +67,7 @@ export function loadServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
   const disabledTools = parseDisabledTools(env.DISABLE_TOOLS);
 
   return {
-    githubToken,
+    githubToken: githubToken && githubToken.length > 0 ? githubToken : undefined,
     host,
     port,
     disabledTools

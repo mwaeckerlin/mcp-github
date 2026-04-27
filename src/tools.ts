@@ -14,11 +14,28 @@ export interface ToolDefinition {
 
 const operationFamilyMap = new Map<string, RestToolFamilyName>();
 const operationsByFamily = new Map<RestToolFamilyName, string[]>();
+const operationDetailsMap = new Map<
+  string,
+  {
+    operationId: string;
+    family: RestToolFamilyName;
+    method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD";
+    path: string;
+    parameterNames: string[];
+  }
+>();
 
 for (const operation of loadRestOperations()) {
   const family = classifyOperationToFamily(operation);
   operationFamilyMap.set(operation.operationId, family);
   operationsByFamily.set(family, [...(operationsByFamily.get(family) ?? []), operation.operationId]);
+  operationDetailsMap.set(operation.operationId, {
+    operationId: operation.operationId,
+    family,
+    method: operation.method,
+    path: operation.path,
+    parameterNames: [...operation.parameterNames]
+  });
 }
 
 const REST_CALL_SCHEMA = {
@@ -98,11 +115,29 @@ export function getOperationFamily(operationId: string): RestToolFamilyName | un
   return operationFamilyMap.get(operationId);
 }
 
-export function listOperationMappings(family?: RestToolFamilyName): Array<{ operationId: string; family: RestToolFamilyName }> {
-  const mappings: Array<{ operationId: string; family: RestToolFamilyName }> = [];
-  for (const [operationId, operationFamily] of operationFamilyMap.entries()) {
-    if (!family || family === operationFamily) {
-      mappings.push({ operationId, family: operationFamily });
+export function listOperationMappings(family?: RestToolFamilyName): Array<{
+  operationId: string;
+  family: RestToolFamilyName;
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD";
+  path: string;
+  parameterNames: string[];
+}> {
+  const mappings: Array<{
+    operationId: string;
+    family: RestToolFamilyName;
+    method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD";
+    path: string;
+    parameterNames: string[];
+  }> = [];
+  for (const details of operationDetailsMap.values()) {
+    if (!family || family === details.family) {
+      mappings.push({
+        operationId: details.operationId,
+        family: details.family,
+        method: details.method,
+        path: details.path,
+        parameterNames: [...details.parameterNames]
+      });
     }
   }
   mappings.sort((a, b) => a.operationId.localeCompare(b.operationId));

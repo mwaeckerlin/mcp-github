@@ -30,6 +30,7 @@ Security properties:
 
 <details>
 <summary>PlantUML source</summary>
+
 ```plantuml
 @startuml architecture
 node "Sandbox / Agent" {
@@ -110,6 +111,133 @@ Each REST family tool takes:
 }
 ```
 
+## How To Use Through MCP
+
+Use this sequence for reliable MCP usage from an agent.
+
+### 1) Check server readiness
+
+- Call `GET /healthz`.
+- If `status` is `degraded`, configure `GITHUB_TOKEN` on the MCP server first.
+
+### 2) Discover the exact operationId
+
+Call tool `github_rest_list_operations` with:
+
+```json
+{
+  "family": "github_issues_rest",
+  "limit": 200,
+  "offset": 0
+}
+```
+
+Then choose the operation ID you need from `operations[]`.
+For creating issues, this is typically `issues/create`.
+Each operation item also includes `method`, `path`, and `parameterNames` so users can see which route/query/body names are expected before calling the family tool.
+
+### Where all parameters come from
+
+For each REST call, parameters are discovered and validated using this chain:
+
+1. `github_rest_list_operations` gives the exact `operationId` plus `method`, `path`, and `parameterNames`.
+2. `parameterNames` are taken from GitHub OpenAPI metadata embedded via `@octokit/openapi`.
+3. You pass these fields under `parameters` in the matching `*_rest` family tool.
+4. The server enforces family allowlisting (`operationId` must belong to that tool family).
+
+Practical guidance:
+
+- Start with `github_rest_list_operations` and filter by family.
+- Pick the target operation (`issues/create`, `issues/create-comment`, `pulls/create`, and so on).
+- Use the returned `parameterNames` as your parameter checklist.
+- If unsure about optional vs required fields for that operation, verify against the GitHub REST endpoint docs for the same operation ID and path.
+
+### 3) Execute the family tool with validated parameters
+
+To create a new issue in `mwaeckerlin/mcp-github`, call tool `github_issues_rest`:
+
+```json
+{
+  "operationId": "issues/create",
+  "parameters": {
+    "owner": "mwaeckerlin",
+    "repo": "mcp-github",
+    "title": "Example issue via MCP",
+    "body": "Created through mcp-github using github_issues_rest.",
+    "labels": ["bug"]
+  }
+}
+```
+
+Expected behavior:
+
+- Success returns JSON containing GitHub API response data for the created issue.
+- If token or permissions are missing, you get a clear error (`GitHub token is not configured...` or `authentication or permission error`).
+- If operation/family mismatch occurs, you get an allowlist validation error.
+
+### 4) Verify by listing issues
+
+Call tool `github_issues_rest`:
+
+```json
+{
+  "operationId": "issues/list-for-repo",
+  "parameters": {
+    "owner": "mwaeckerlin",
+    "repo": "mcp-github",
+    "state": "open",
+    "per_page": 30
+  }
+}
+```
+
+## Practical MCP Recipes
+
+### Read current authenticated account
+
+Tool: `github_users_orgs_teams_rest`
+
+```json
+{
+  "operationId": "users/get-authenticated",
+  "parameters": {}
+}
+```
+
+### Comment on an issue
+
+Tool: `github_issues_rest`
+
+```json
+{
+  "operationId": "issues/create-comment",
+  "parameters": {
+    "owner": "mwaeckerlin",
+    "repo": "mcp-github",
+    "issue_number": 1,
+    "body": "Comment added via MCP"
+  }
+}
+```
+
+### Open a pull request
+
+Tool: `github_pull_requests_rest`
+
+```json
+{
+  "operationId": "pulls/create",
+  "parameters": {
+    "owner": "mwaeckerlin",
+    "repo": "mcp-github",
+    "title": "Example PR via MCP",
+    "head": "feature-branch",
+    "base": "main",
+    "body": "Created through mcp-github"
+  }
+}
+```
+
 ## Configuration
 
 > Production rule: keep `GITHUB_TOKEN` server-side only.
@@ -118,10 +246,17 @@ Each REST family tool takes:
 
 | Variable | Required | Description |
 |---|---|---|
-| `GITHUB_TOKEN` | yes | GitHub token used by the server (never passed to sandbox) |
+| `GITHUB_TOKEN` | no | GitHub token used by the server (never passed to sandbox); if missing, server starts in degraded mode and GitHub REST/GraphQL calls return a configuration error |
 | `MCP_GITHUB_HOST` | no | Bind host (default `0.0.0.0`) |
 | `MCP_GITHUB_PORT` | no | Bind port (default `4000`) |
 | `DISABLE_TOOLS` | no | Comma-separated MCP tool names to disable |
+
+### Health status semantics
+
+- `GET /healthz` always returns HTTP `200` while the process is running.
+- With token configured: `{ "ok": true, "status": "ready", "githubTokenConfigured": true }`
+- Without token: `{ "ok": true, "status": "degraded", "githubTokenConfigured": false, "message": "...set GITHUB_TOKEN..." }`
+- In degraded mode, `github_rest_list_operations` still works, but all GitHub REST/GraphQL execution tools return a clear token-missing error.
 
 ### Client configuration (sandbox/agent environment)
 
@@ -186,12 +321,12 @@ If you use a classic PAT (legacy), no scopes are needed for the basic tests. Add
 ```bash
 npm install
 npm run build
-GITHUB_TOKEN=*** npm start
+npm start
 ```
 
 Dev mode:
 ```bash
-GITHUB_TOKEN=*** npm run dev
+npm run dev
 ```
 
 Tests:
@@ -211,7 +346,7 @@ npm test
 
 | Symptom | Cause | Action |
 |---|---|---|
-| `GITHUB_TOKEN is required` | Missing server token | Set server-side `GITHUB_TOKEN` |
+| `GitHub token is not configured on the MCP server ...` | Server started without token | Set server-side `GITHUB_TOKEN` to enable GitHub REST/GraphQL execution tools |
 | `operationId ... is not allowlisted for tool ...` | Wrong tool family | Query `github_rest_list_operations` and use matching family |
 | `GitHub authentication or permission error (401/403)` | Invalid token or insufficient scopes | Rotate token or add required scopes |
 | `GitHub resource not found or not accessible` | Missing permission or wrong resource | Validate owner/repo/resource access |
