@@ -104,6 +104,61 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ["operationName", "query"],
       additionalProperties: false
     }
+  },
+  {
+    name: "github_copilot_assign_issue",
+    description:
+      "Assign GitHub Copilot cloud agent to an existing issue. " +
+      "Copilot will research the issue, create an implementation plan, make code changes on a branch, and open a pull request. " +
+      "Requires a Copilot plan (Pro, Pro+, Business, or Enterprise) with cloud agent enabled in the repository. " +
+      "This feature is in public preview and subject to change.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        owner: {
+          type: "string",
+          description: "Repository owner (user or organization)"
+        },
+        repo: {
+          type: "string",
+          description: "Repository name"
+        },
+        issue_number: {
+          type: "integer",
+          minimum: 1,
+          description: "Issue number to assign Copilot to"
+        },
+        agent_assignment: {
+          type: "object",
+          description: "Optional agent assignment configuration",
+          properties: {
+            target_repo: {
+              type: "string",
+              description: "Repository where Copilot will make code changes (defaults to owner/repo)"
+            },
+            base_branch: {
+              type: "string",
+              description: "Branch to use as the base for Copilot's changes"
+            },
+            custom_instructions: {
+              type: "string",
+              description: "Additional instructions for Copilot beyond the issue body"
+            },
+            custom_agent: {
+              type: "string",
+              description: "Name of a custom agent profile to use"
+            },
+            model: {
+              type: "string",
+              description: "AI model for Copilot to use (e.g. 'gpt-4o', 'claude-3-7-sonnet')"
+            }
+          },
+          additionalProperties: false
+        }
+      },
+      required: ["owner", "repo", "issue_number"],
+      additionalProperties: false
+    }
   }
 ];
 

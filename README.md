@@ -84,6 +84,9 @@ Each REST family tool takes:
 ### GraphQL
 - `github_graphql`: validated GraphQL operation execution (`operationName`, `query`, optional `variables`) for gaps where GraphQL is needed.
 
+### Copilot cloud agent
+- `github_copilot_assign_issue`: assign GitHub Copilot cloud agent to an existing issue. Copilot researches the issue, creates an implementation plan, and opens a pull request. Accepts optional `agent_assignment` for `target_repo`, `base_branch`, `custom_instructions`, `custom_agent`, and `model`. Requires a Copilot plan with cloud agent enabled (public preview).
+
 ## Tool-Call Parameters
 
 ### `github_rest_list_operations`
@@ -418,6 +421,40 @@ npm test
 | `GitHub authentication or permission error (401/403)` | Invalid token or insufficient scopes | Rotate token or add required scopes |
 | `GitHub resource not found or not accessible` | Missing permission or wrong resource | Validate owner/repo/resource access |
 | `Tool disabled by DISABLE_TOOLS` | Tool explicitly disabled | Remove from `DISABLE_TOOLS` or call different tool |
+| `GitHub API error (422)` with assignees | Wrong assignee username or missing `agent_assignment` | Use the dedicated `github_copilot_assign_issue` tool |
+
+### Assigning Copilot cloud agent to issues
+
+Use the dedicated `github_copilot_assign_issue` tool to assign GitHub Copilot cloud agent to an existing issue. Copilot will research the issue, create an implementation plan, make code changes on a branch, and open a pull request.
+
+Requires a Copilot plan (Pro, Pro+, Business, or Enterprise) with cloud agent enabled in the repository. This feature is in **public preview**.
+
+**Why not use `issues/add-assignees` directly?** The REST API requires the assignee `"copilot-swe-agent[bot]"` (including the `[bot]` suffix) and an `agent_assignment` body object. The `github_copilot_assign_issue` tool handles this automatically.
+
+Minimal call:
+
+```json
+{
+  "owner": "octo-org",
+  "repo": "octo-repo",
+  "issue_number": 42
+}
+```
+
+With optional configuration:
+
+```json
+{
+  "owner": "octo-org",
+  "repo": "octo-repo",
+  "issue_number": 42,
+  "agent_assignment": {
+    "base_branch": "main",
+    "custom_instructions": "Add unit tests only. Do not modify existing logic.",
+    "model": "gpt-4o"
+  }
+}
+```
 
 ## SKILL
 
