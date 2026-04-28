@@ -9,11 +9,12 @@ import { isToolDisabled, loadDisabledToolsFromEnv } from "./disabled-tools.js";
 import { isHttpToolName, loadGatewayConfig, validateHttpToolArguments } from "./commands.js";
 import { isReadonlyRpcToolName, runReadonlyRpcToolWithArguments } from "./readonly-rpc-tools.js";
 import { isSkillsToolName, runSkillsToolWithArguments } from "./skills.js";
+import { isCopilotToolName, runCopilotToolWithArguments } from "./copilot-tools.js";
 
 const MISSING_GITHUB_TOKEN_MESSAGE =
   "GitHub token is not configured, GitHub service is limited";
 
-type ApiClient = Pick<GitHubApiClient, "callRestByOperationId" | "callGraphQl">;
+type ApiClient = Pick<GitHubApiClient, "callRestByOperationId" | "callGraphQl" | "assignCopilotToIssue">;
 
 function respondJson(response: ServerResponse, statusCode: number, body: Record<string, unknown>): void {
   response.writeHead(statusCode, { "Content-Type": "application/json" });
@@ -60,6 +61,10 @@ export async function runToolWithArguments(
 
   if (isSkillsToolName(toolName)) {
     return runSkillsToolWithArguments(toolName, toolArguments, apiClient);
+  }
+
+  if (isCopilotToolName(toolName)) {
+    return runCopilotToolWithArguments(toolName, toolArguments, apiClient);
   }
 
   if (isReadonlyRpcToolName(toolName)) {

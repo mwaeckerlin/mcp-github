@@ -53,8 +53,8 @@ test("normalizeGitHubError: provides helpful message for 422 assignee validation
   assert.ok(result instanceof McpError);
   assert.equal(result.code, ErrorCode.InternalError);
   assert.ok(result.message.includes("422"));
-  assert.ok(/REST API/i.test(result.message), "message should mention REST API limitation");
-  assert.ok(/GitHub UI/i.test(result.message), "message should mention GitHub UI workaround");
+  assert.ok(/github_copilot_assign_issue/i.test(result.message), "message should mention the dedicated tool");
+  assert.ok(/copilot-swe-agent/i.test(result.message), "message should mention the correct assignee username");
 });
 
 test("normalizeGitHubError: provides helpful message for 422 errors mentioning assignees in message text", () => {
@@ -63,8 +63,8 @@ test("normalizeGitHubError: provides helpful message for 422 errors mentioning a
   assert.ok(result instanceof McpError);
   assert.equal(result.code, ErrorCode.InternalError);
   assert.ok(result.message.includes("422"));
-  assert.ok(/REST API/i.test(result.message), "message should mention REST API limitation");
-  assert.ok(/GitHub UI/i.test(result.message), "message should mention GitHub UI workaround");
+  assert.ok(/github_copilot_assign_issue/i.test(result.message), "message should mention the dedicated tool");
+  assert.ok(/copilot-swe-agent/i.test(result.message), "message should mention the correct assignee username");
 });
 
 test("normalizeGitHubError: non-assignee 422 errors do not trigger the assignee-specific message", () => {

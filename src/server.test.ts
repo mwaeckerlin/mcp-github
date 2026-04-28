@@ -16,6 +16,14 @@ const mockedApiClient = {
   },
   async callGraphQl(operationName: string, _query: string, variables: Record<string, unknown>) {
     return { ok: true, operationName, variables };
+  },
+  async assignCopilotToIssue(owner: string, repo: string, issueNumber: number) {
+    return {
+      status: 201,
+      url: `https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}/assignees`,
+      data: { number: issueNumber, assignees: [{ login: "copilot-swe-agent[bot]" }] },
+      headers: {}
+    };
   }
 };
 
@@ -224,6 +232,50 @@ test("disabled tool with family name returns McpError", async () => {
         { operationId: listOperationMappings("github_repositories_rest")[0].operationId },
         mockedApiClient,
         new Set(["github_repositories_rest"])
+      ),
+    (err) => err instanceof McpError
+  );
+});
+
+// ---------------------------------------------------------- github_copilot_assign_issue
+
+test("github_copilot_assign_issue: assigns Copilot and returns JSON with owner/repo/issue_number/data", async () => {
+  const output = await runToolWithArguments(
+    "github_copilot_assign_issue",
+    { owner: "octo-org", repo: "octo-repo", issue_number: 42 },
+    mockedApiClient,
+    new Set()
+  );
+  const parsed = JSON.parse(output) as { owner: string; repo: string; issue_number: number; data: unknown };
+  assert.equal(parsed.owner, "octo-org");
+  assert.equal(parsed.repo, "octo-repo");
+  assert.equal(parsed.issue_number, 42);
+  assert.ok(parsed.data !== undefined);
+});
+
+test("github_copilot_assign_issue: rejects missing owner", async () => {
+  await assert.rejects(
+    () => runToolWithArguments("github_copilot_assign_issue", { repo: "repo", issue_number: 1 }, mockedApiClient, new Set()),
+    (err) => err instanceof McpError
+  );
+});
+
+test("github_copilot_assign_issue: rejects non-positive issue_number", async () => {
+  await assert.rejects(
+    () =>
+      runToolWithArguments("github_copilot_assign_issue", { owner: "org", repo: "repo", issue_number: 0 }, mockedApiClient, new Set()),
+    (err) => err instanceof McpError
+  );
+});
+
+test("github_copilot_assign_issue: disabled copilot tool returns McpError", async () => {
+  await assert.rejects(
+    () =>
+      runToolWithArguments(
+        "github_copilot_assign_issue",
+        { owner: "org", repo: "repo", issue_number: 1 },
+        mockedApiClient,
+        new Set(["github_copilot_assign_issue"])
       ),
     (err) => err instanceof McpError
   );

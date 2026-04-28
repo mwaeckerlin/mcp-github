@@ -209,21 +209,78 @@ Tool: `github_pull_requests_rest`
 | `GitHub authentication or permission error` | Bad token or missing scopes | Fix `GITHUB_TOKEN` scopes on server side |
 | `GitHub resource not found or not accessible` | Missing access rights or wrong identifiers | Validate org/repo/path and token grants |
 | `Tool disabled by DISABLE_TOOLS` | Server-side tool restriction | Use enabled tool or update server config |
-| `GitHub API error (422)` with assignees | Bot/app accounts cannot be assigned via the REST API | Use the GitHub UI "Assign agent" button — this is a GitHub platform limitation |
+| `GitHub API error (422)` with assignees | Wrong assignee username or missing `agent_assignment` | Use the `github_copilot_assign_issue` tool to assign Copilot |
 
 ## Agent assignment limitation
 
-GitHub's REST API **does not support assigning bot or app accounts** (such as Copilot) to issues via `issues/add-assignees`. Attempting this returns:
+GitHub's REST API **does not support assigning bot or app accounts** (such as Copilot) to issues via the standard `issues/add-assignees` endpoint with just an assignee name. Attempting this with `"assignees": ["Copilot"]` or `"assignees": ["copilot-swe-agent"]` returns:
 
 ```
 422 Validation Failed: {"value":"Copilot","resource":"Issue","field":"assignees","code":"invalid"}
 ```
 
-This is a GitHub platform limitation. Neither the REST API nor the GraphQL API exposes a supported mutation for assigning agent accounts programmatically.
+## Assigning Copilot cloud agent to issues
 
-**Workaround:** Use the GitHub web UI — open the issue, click "Assignees", then select "Assign agent" to assign Copilot through the UI.
+GitHub Copilot cloud agent **can** be assigned to issues programmatically using the dedicated `github_copilot_assign_issue` tool. This feature is in **public preview** and requires:
 
-The MCP server will return a clear error message when this situation is detected.
+- A GitHub Copilot plan (Pro, Pro+, Business, or Enterprise)
+- Copilot cloud agent enabled in the repository
+
+### Minimal example
+
+Tool: `github_copilot_assign_issue`
+
+```json
+{
+  "owner": "octo-org",
+  "repo": "octo-repo",
+  "issue_number": 42
+}
+```
+
+### With optional agent assignment configuration
+
+Tool: `github_copilot_assign_issue`
+
+```json
+{
+  "owner": "octo-org",
+  "repo": "octo-repo",
+  "issue_number": 42,
+  "agent_assignment": {
+    "target_repo": "octo-org/octo-repo",
+    "base_branch": "main",
+    "custom_instructions": "Focus on adding unit tests only. Do not modify existing code.",
+    "model": "gpt-4o"
+  }
+}
+```
+
+Parameters in `agent_assignment` are all optional:
+
+| Parameter | Description |
+|---|---|
+| `target_repo` | Repository where Copilot will make code changes (defaults to `owner/repo`) |
+| `base_branch` | Branch to use as the base for Copilot's changes |
+| `custom_instructions` | Additional instructions for Copilot beyond the issue body |
+| `custom_agent` | Name of a custom agent profile to use |
+| `model` | AI model for Copilot to use (e.g. `gpt-4o`, `claude-3-7-sonnet`) |
+
+### Verifying Copilot is available
+
+Before assigning, check that Copilot cloud agent is enabled in the repository via GraphQL:
+
+Tool: `github_graphql`
+
+```json
+{
+  "operationName": "CheckCopilotAvailable",
+  "query": "query CheckCopilotAvailable($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) { suggestedActors(capabilities: [CAN_BE_ASSIGNED], first: 10) { nodes { login } } } }",
+  "variables": { "owner": "octo-org", "repo": "octo-repo" }
+}
+```
+
+If Copilot cloud agent is available, the result will include a node with `login: "copilot-swe-agent"`.
 
 ## Safe operating rules
 

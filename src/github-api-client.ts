@@ -2,6 +2,7 @@ import { Octokit } from "@octokit/core";
 import { graphql } from "@octokit/graphql";
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { loadRestOperations } from "./openapi-operations.js";
+import type { AgentAssignment } from "./copilot-tools.js";
 
 const OPERATION_REGISTRY = new Map(loadRestOperations().map((operation) => [operation.operationId, operation]));
 
@@ -61,6 +62,47 @@ export class GitHubApiClient {
       throw normalizeGitHubError(error);
     }
   }
+
+  async assignCopilotToIssue(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    agentAssignment?: AgentAssignment
+  ): Promise<RestCallResult> {
+    try {
+      const agentAssignmentBody: Record<string, string> = {
+        target_repo: agentAssignment?.target_repo ?? `${owner}/${repo}`
+      };
+      if (agentAssignment?.base_branch) agentAssignmentBody.base_branch = agentAssignment.base_branch;
+      if (agentAssignment?.custom_instructions) agentAssignmentBody.custom_instructions = agentAssignment.custom_instructions;
+      if (agentAssignment?.custom_agent) agentAssignmentBody.custom_agent = agentAssignment.custom_agent;
+      if (agentAssignment?.model) agentAssignmentBody.model = agentAssignment.model;
+
+      const response = await this.octokit.request(
+        "POST /repos/{owner}/{repo}/issues/{issue_number}/assignees",
+        {
+          owner,
+          repo,
+          issue_number: issueNumber,
+          assignees: ["copilot-swe-agent[bot]"],
+          agent_assignment: agentAssignmentBody
+        }
+      );
+      return {
+        status: response.status,
+        url: response.url,
+        data: response.data,
+        headers: {
+          link: response.headers.link,
+          "x-ratelimit-limit": response.headers["x-ratelimit-limit"],
+          "x-ratelimit-remaining": response.headers["x-ratelimit-remaining"],
+          "x-ratelimit-reset": response.headers["x-ratelimit-reset"]
+        }
+      };
+    } catch (error: unknown) {
+      throw normalizeGitHubError(error);
+    }
+  }
 }
 
 export function normalizeGitHubError(error: unknown): McpError {
@@ -88,7 +130,7 @@ export function normalizeGitHubError(error: unknown): McpError {
     if (isAssigneeError) {
       return new McpError(
         ErrorCode.InternalError,
-        'GitHub API error (422): Bot and app accounts (such as Copilot) cannot be assigned to issues via the REST API—use the GitHub UI "Assign agent" button instead.'
+        'GitHub API error (422): Assigning bot/agent accounts via the REST API requires the assignee "copilot-swe-agent[bot]" and an "agent_assignment" body field. Use the dedicated "github_copilot_assign_issue" tool to assign Copilot cloud agent to an issue.'
       );
     }
     return new McpError(ErrorCode.InternalError, `GitHub API error (422): ${message}`);
