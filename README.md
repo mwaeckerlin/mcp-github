@@ -16,6 +16,8 @@ Sandboxed agents should **not** hold GitHub tokens. Instead:
 2. This MCP server (running outside the sandbox) uses the server-side `GITHUB_TOKEN`.
 3. Calls are limited to validated MCP tools and validated arguments.
 
+The agent does not need a GitHub token. The token is required only on the MCP server side.
+
 Security properties:
 - no GitHub token in sandbox/client
 - no arbitrary GitHub URL passthrough
@@ -304,6 +306,35 @@ See the [GitHub fine-grained PAT permission reference](https://docs.github.com/e
 If you use a classic PAT (legacy), no scopes are needed for the basic tests. Add the `codespace` scope only if you want the codespaces test to run fully.
 
 > **Note:** GitHub's API returns HTTP 401 if you supply *any* token that is invalid or expired, even for public-data endpoints. Always use a fresh, valid token.
+
+### Required token permissions for write workflows in public repositories
+
+These permissions apply when the agent should perform write actions (branch, commit/push, issues, PRs) through this MCP server.
+
+#### Fine-grained PAT (recommended)
+
+Repository access:
+- Target repository (or "All repositories") where writes should happen
+
+Repository permissions:
+- `Contents: Read and write` (checkout via API, create branch, commit, push)
+- `Issues: Read and write` (create/update issue)
+- `Pull requests: Read and write` (create/update PR)
+
+Optional (only if needed):
+- `Workflows: Read and write` (required when commits modify `.github/workflows/*`)
+
+#### Classic PAT
+
+Minimum for public repositories:
+- `public_repo`
+
+Optional (only if needed):
+- `workflow` (required when pushing/modifying `.github/workflows/*`)
+
+Notes:
+- For pure checkout of a public repository, no token is required.
+- Write operations still require normal GitHub repository access (for example collaborator/team rights).
 
 ### What the tests do to your GitHub account
 

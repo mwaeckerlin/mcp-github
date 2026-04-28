@@ -7,6 +7,14 @@ description: Use this skill for secure GitHub MCP usage from sandboxed agents â€
 
 Secure MCP bridge for GitHub where credentials are held only on the server side.
 
+## Purpose (sandbox perspective)
+
+This skill exists so sandboxed agents can use GitHub safely **without having a GitHub token**.
+
+- The agent/client uses only `MCP_GITHUB_URL`.
+- Only the MCP server knows and uses `GITHUB_TOKEN`.
+- The token must never be copied into the sandbox.
+
 ## Local installation (deterministic)
 
 Use these rules when told to install this skill locally.
