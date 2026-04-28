@@ -37,6 +37,26 @@ test("loadServerConfigFromEnv: accepts whitespace-only GITHUB_TOKEN as undefined
   assert.equal(config.githubToken, undefined);
 });
 
+test("loadServerConfigFromEnv: loads MCP_AUTH_TOKEN from env", () => {
+  const config = loadServerConfigFromEnv({ MCP_AUTH_TOKEN: "my-secret-token" });
+  assert.equal(config.mcpAuthToken, "my-secret-token");
+});
+
+test("loadServerConfigFromEnv: trims MCP_AUTH_TOKEN whitespace", () => {
+  const config = loadServerConfigFromEnv({ MCP_AUTH_TOKEN: "  trimmed  " });
+  assert.equal(config.mcpAuthToken, "trimmed");
+});
+
+test("loadServerConfigFromEnv: accepts missing MCP_AUTH_TOKEN as undefined", () => {
+  const config = loadServerConfigFromEnv({});
+  assert.equal(config.mcpAuthToken, undefined);
+});
+
+test("loadServerConfigFromEnv: accepts whitespace-only MCP_AUTH_TOKEN as undefined", () => {
+  const config = loadServerConfigFromEnv({ MCP_AUTH_TOKEN: "   " });
+  assert.equal(config.mcpAuthToken, undefined);
+});
+
 test("loadServerConfigFromEnv: throws when MCP_GITHUB_PORT is non-numeric", () => {
   assert.throws(() => loadServerConfigFromEnv({ GITHUB_TOKEN: "tok", MCP_GITHUB_PORT: "xyz" }), /MCP_GITHUB_PORT/);
 });

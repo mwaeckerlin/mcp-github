@@ -249,13 +249,46 @@ Tool: `github_pull_requests_rest`
 | Variable | Required | Description |
 |---|---|---|
 | `GITHUB_TOKEN` | no | GitHub token used by the server (never passed to sandbox); if missing, server starts in degraded mode: public read calls can work, while private and write operations fail |
+| `MCP_AUTH_TOKEN` | no | Shared secret token for MCP endpoint authentication; if set, all MCP requests must supply this token via `Authorization: Bearer <token>` header or `?token=<token>` query parameter; `/healthz` is exempt |
 | `MCP_GITHUB_HOST` | no | Bind host (default `0.0.0.0`) |
 | `MCP_GITHUB_PORT` | no | Bind port (default `4000`) |
 | `DISABLE_TOOLS` | no | Comma-separated MCP tool names to disable |
 
+### Authentication setup (MCP_AUTH_TOKEN)
+
+When `MCP_AUTH_TOKEN` is set on the server, the sandbox must present the same token in every MCP request. The `/healthz` endpoint is not protected and can always be polled for readiness.
+
+**Server side** — set the shared secret:
+```bash
+export MCP_AUTH_TOKEN=$(openssl rand -hex 32)
+```
+
+**Client side** — pass the token via HTTP header (recommended):
+```
+Authorization: Bearer <token>
+```
+
+Or via query parameter (alternative):
+```
+http://mcp-github:4000/?token=<token>
+```
+
+**Client environment variable** — expose the token to the sandbox:
+
+| Variable | Required | Description |
+|---|---|---|
+| `MCP_AUTH_TOKEN` | no | Shared secret that the sandbox must present when `MCP_AUTH_TOKEN` is also set on the server |
+
+**Security considerations:**
+- Generate tokens with a cryptographically secure random source (e.g., `openssl rand -hex 32`).
+- Rotate tokens periodically and whenever they may have been exposed.
+- Never commit tokens to source control.
+- Keep the token length ≥ 32 characters to resist brute-force attempts.
+- Without `MCP_AUTH_TOKEN` set, the server accepts all requests (backward-compatible default).
+
 ### Health status semantics
 
-- `GET /healthz` always returns HTTP `200` while the process is running.
+- `GET /healthz` always returns HTTP `200` while the process is running (authentication is not required for this endpoint).
 - With token configured: `{ "ok": true, "status": "ready", "githubTokenConfigured": true }`
 - Without token: `{ "ok": true, "status": "degraded", "githubTokenConfigured": false, "message": "...set GITHUB_TOKEN..." }`
 - In degraded mode, `github_rest_list_operations` still works and is filtered to read-only (`GET`/`HEAD`) operations; public read calls can work, while write/private operations fail.
@@ -265,6 +298,7 @@ Tool: `github_pull_requests_rest`
 | Variable | Required | Description |
 |---|---|---|
 | `MCP_GITHUB_URL` | yes | URL where the sandbox MCP client reaches this server (for example `http://mcp-github:4000`) |
+| `MCP_AUTH_TOKEN` | no | Shared secret to present in MCP requests when the server requires authentication |
 
 `MCP_GITHUB_URL` must be set by your deployment/startup configuration and exposed in the sandbox user environment, because the MCP client reads this variable to know where to send requests.
 

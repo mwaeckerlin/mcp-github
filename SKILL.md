@@ -39,9 +39,10 @@ Always run this preflight sequence:
    - `echo "$MCP_GITHUB_URL"`
    - Expected: non-empty URL like `http://mcp-github:4000`
 2. If empty, stop. You cannot use this skill until `MCP_GITHUB_URL` is available in your shell environment.
-3. Check `GET /healthz`.
-4. If `status` is `degraded`, GITHUB_TOKEN is missing and only public read calls are possible.
-5. Call `github_rest_list_operations` before any REST family call.
+3. If `MCP_AUTH_TOKEN` is set in your environment, you must include it in every MCP request as `Authorization: Bearer $MCP_AUTH_TOKEN`.
+4. Check `GET /healthz`.
+5. If `status` is `degraded`, GITHUB_TOKEN is missing and only public read calls are possible.
+6. Call `github_rest_list_operations` before any REST family call.
 
 Do not call REST/GraphQL execution tools before preflight succeeds.
 
@@ -204,6 +205,7 @@ Tool: `github_pull_requests_rest`
 
 | Error contains | Cause | Action |
 |---|---|---|
+| `unauthorized` (HTTP 401) | Request missing or presenting wrong MCP_AUTH_TOKEN | Set `Authorization: Bearer $MCP_AUTH_TOKEN` header in all MCP requests |
 | `operationId ... is not allowlisted` | Wrong operation/tool family combination | List operations and pick matching family |
 | `GitHub token is not configured on the MCP server` | Server runs without `GITHUB_TOKEN` | Configure server-side `GITHUB_TOKEN` and retry |
 | `GitHub authentication or permission error` | Bad token or missing scopes | Fix `GITHUB_TOKEN` scopes on server side |
