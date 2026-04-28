@@ -40,6 +40,41 @@ test("normalizeGitHubError: includes status code in message for other HTTP error
   assert.ok(result.message.includes("422"));
 });
 
+test("normalizeGitHubError: provides helpful message for 422 assignee validation error via response data", () => {
+  const err = Object.assign(new Error("Validation Failed"), {
+    status: 422,
+    response: {
+      data: {
+        errors: [{ value: "Copilot", resource: "Issue", field: "assignees", code: "invalid" }]
+      }
+    }
+  });
+  const result = normalizeGitHubError(err);
+  assert.ok(result instanceof McpError);
+  assert.equal(result.code, ErrorCode.InternalError);
+  assert.ok(result.message.includes("422"));
+  assert.ok(/REST API/i.test(result.message), "message should mention REST API limitation");
+  assert.ok(/GitHub UI/i.test(result.message), "message should mention GitHub UI workaround");
+});
+
+test("normalizeGitHubError: provides helpful message for 422 errors mentioning assignees in message text", () => {
+  const err = Object.assign(new Error("Validation Failed: assignees value Copilot invalid"), { status: 422 });
+  const result = normalizeGitHubError(err);
+  assert.ok(result instanceof McpError);
+  assert.equal(result.code, ErrorCode.InternalError);
+  assert.ok(result.message.includes("422"));
+  assert.ok(/REST API/i.test(result.message), "message should mention REST API limitation");
+  assert.ok(/GitHub UI/i.test(result.message), "message should mention GitHub UI workaround");
+});
+
+test("normalizeGitHubError: non-assignee 422 errors do not trigger the assignee-specific message", () => {
+  const err = Object.assign(new Error("Validation Failed: title is too long"), { status: 422 });
+  const result = normalizeGitHubError(err);
+  assert.ok(result instanceof McpError);
+  assert.ok(result.message.includes("422"));
+  assert.ok(!/bot|app|agent/i.test(result.message));
+});
+
 test("normalizeGitHubError: returns generic message when no status is present", () => {
   const err = new Error("ECONNREFUSED");
   const result = normalizeGitHubError(err);

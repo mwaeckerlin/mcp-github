@@ -77,6 +77,23 @@ export function normalizeGitHubError(error: unknown): McpError {
     return new McpError(ErrorCode.InternalError, "GitHub resource not found or not accessible");
   }
 
+  if (status === 422) {
+    const errors = (error as { response?: { data?: { errors?: unknown[] } } }).response?.data?.errors;
+    const isAssigneeError =
+      (Array.isArray(errors) &&
+        errors.some(
+          (e) => typeof e === "object" && e !== null && (e as Record<string, unknown>).field === "assignees"
+        )) ||
+      /assignee/i.test(rawMessage);
+    if (isAssigneeError) {
+      return new McpError(
+        ErrorCode.InternalError,
+        'GitHub API error (422): Bot and app accounts (such as Copilot) cannot be assigned to issues via the REST API—use the GitHub UI "Assign agent" button instead.'
+      );
+    }
+    return new McpError(ErrorCode.InternalError, `GitHub API error (422): ${message}`);
+  }
+
   if (status !== undefined) {
     return new McpError(ErrorCode.InternalError, `GitHub API error (${status}): ${message}`);
   }

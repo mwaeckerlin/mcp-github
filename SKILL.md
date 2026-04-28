@@ -209,6 +209,21 @@ Tool: `github_pull_requests_rest`
 | `GitHub authentication or permission error` | Bad token or missing scopes | Fix `GITHUB_TOKEN` scopes on server side |
 | `GitHub resource not found or not accessible` | Missing access rights or wrong identifiers | Validate org/repo/path and token grants |
 | `Tool disabled by DISABLE_TOOLS` | Server-side tool restriction | Use enabled tool or update server config |
+| `GitHub API error (422)` with assignees | Bot/app accounts cannot be assigned via the REST API | Use the GitHub UI "Assign agent" button — this is a GitHub platform limitation |
+
+## Agent assignment limitation
+
+GitHub's REST API **does not support assigning bot or app accounts** (such as Copilot) to issues via `issues/add-assignees`. Attempting this returns:
+
+```
+422 Validation Failed: {"value":"Copilot","resource":"Issue","field":"assignees","code":"invalid"}
+```
+
+This is a GitHub platform limitation. Neither the REST API nor the GraphQL API exposes a supported mutation for assigning agent accounts programmatically.
+
+**Workaround:** Use the GitHub web UI — open the issue, click "Assignees", then select "Assign agent" to assign Copilot through the UI.
+
+The MCP server will return a clear error message when this situation is detected.
 
 ## Safe operating rules
 

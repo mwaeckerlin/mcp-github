@@ -384,6 +384,15 @@ npm test
 | `GitHub authentication or permission error (401/403)` | Invalid token or insufficient scopes | Rotate token or add required scopes |
 | `GitHub resource not found or not accessible` | Missing permission or wrong resource | Validate owner/repo/resource access |
 | `Tool disabled by DISABLE_TOOLS` | Tool explicitly disabled | Remove from `DISABLE_TOOLS` or call different tool |
+| `GitHub API error (422)` with assignees | Bot/app accounts (e.g. Copilot) cannot be assigned via the REST API | Use the GitHub UI "Assign agent" button — this is a GitHub platform limitation |
+
+### Assigning Copilot or other agent accounts to issues
+
+GitHub's REST API rejects bot and app accounts (such as `Copilot`) when passed as assignees to `issues/add-assignees`, returning a 422 Validation Failed error. This is a GitHub platform limitation and is not specific to this MCP server.
+
+**Workaround:** Open the issue in the GitHub web UI, click "Assignees", then select "Assign agent" to assign Copilot.
+
+The MCP server returns an actionable error message when this situation is detected.
 
 ## SKILL
 
