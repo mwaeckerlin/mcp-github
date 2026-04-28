@@ -27,10 +27,13 @@ Installation procedure:
 ## First step
 
 Always run this preflight sequence:
-
-1. Check `GET /healthz`.
-2. If `status` is `degraded`, stop and request server-side `GITHUB_TOKEN` configuration.
-3. Call `github_rest_list_operations` before any REST family call.
+1. In your sandbox shell, verify the MCP client target URL exists:
+   - `echo "$MCP_GITHUB_URL"`
+   - Expected: non-empty URL like `http://mcp-github:4000`
+2. If empty, stop. You cannot use this skill until `MCP_GITHUB_URL` is available in your shell environment.
+3. Check `GET /healthz`.
+4. If `status` is `degraded`, GITHUB_TOKEN is missing and only public read calls are possible.
+5. Call `github_rest_list_operations` before any REST family call.
 
 Do not call REST/GraphQL execution tools before preflight succeeds.
 

@@ -118,7 +118,7 @@ Use this sequence for reliable MCP usage from an agent.
 ### 1) Check server readiness
 
 - Call `GET /healthz`.
-- If `status` is `degraded`, configure `GITHUB_TOKEN` on the MCP server first.
+- If `status` is `degraded`, continue in read-only mode: only public read calls are expected to work.
 
 ### 2) Discover the exact operationId
 
@@ -246,7 +246,7 @@ Tool: `github_pull_requests_rest`
 
 | Variable | Required | Description |
 |---|---|---|
-| `GITHUB_TOKEN` | no | GitHub token used by the server (never passed to sandbox); if missing, server starts in degraded mode and GitHub REST/GraphQL calls return a configuration error |
+| `GITHUB_TOKEN` | no | GitHub token used by the server (never passed to sandbox); if missing, server starts in degraded mode: public read calls can work, while private and write operations fail |
 | `MCP_GITHUB_HOST` | no | Bind host (default `0.0.0.0`) |
 | `MCP_GITHUB_PORT` | no | Bind port (default `4000`) |
 | `DISABLE_TOOLS` | no | Comma-separated MCP tool names to disable |
@@ -256,13 +256,15 @@ Tool: `github_pull_requests_rest`
 - `GET /healthz` always returns HTTP `200` while the process is running.
 - With token configured: `{ "ok": true, "status": "ready", "githubTokenConfigured": true }`
 - Without token: `{ "ok": true, "status": "degraded", "githubTokenConfigured": false, "message": "...set GITHUB_TOKEN..." }`
-- In degraded mode, `github_rest_list_operations` still works, but all GitHub REST/GraphQL execution tools return a clear token-missing error.
+- In degraded mode, `github_rest_list_operations` still works and is filtered to read-only (`GET`/`HEAD`) operations; public read calls can work, while write/private operations fail.
 
 ### Client configuration (sandbox/agent environment)
 
 | Variable | Required | Description |
 |---|---|---|
 | `MCP_GITHUB_URL` | yes | URL where the sandbox MCP client reaches this server (for example `http://mcp-github:4000`) |
+
+`MCP_GITHUB_URL` must be set by your deployment/startup configuration and exposed in the sandbox user environment, because the MCP client reads this variable to know where to send requests.
 
 ### Separation rules
 
