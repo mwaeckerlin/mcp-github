@@ -128,7 +128,8 @@ async function handleMcpHttpRequest(
   response: ServerResponse,
   apiClient: ApiClient,
   disabledTools: ReadonlySet<string>,
-  githubTokenConfigured: boolean
+  githubTokenConfigured: boolean,
+  mcpAuthToken: string | undefined
 ): Promise<void> {
   const requestUrl = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
 
@@ -144,6 +145,20 @@ async function handleMcpHttpRequest(
       });
     }
     return;
+  }
+
+  if (mcpAuthToken !== undefined) {
+    const authHeader = request.headers["authorization"];
+    const bearerToken = typeof authHeader === "string" && authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : undefined;
+    const queryToken = requestUrl.searchParams.get("token") ?? undefined;
+    const providedToken = bearerToken ?? queryToken;
+
+    if (providedToken !== mcpAuthToken) {
+      respondJson(response, 401, { error: "unauthorized", message: "Valid MCP_AUTH_TOKEN required" });
+      return;
+    }
   }
 
   if (requestUrl.pathname !== "/") {
@@ -175,8 +190,12 @@ export async function main(): Promise<void> {
     console.warn(`Warning: ${MISSING_GITHUB_TOKEN_MESSAGE}`);
   }
 
+  if (config.mcpAuthToken) {
+    console.error("MCP authentication enabled via MCP_AUTH_TOKEN");
+  }
+
   const httpServer = createServer((request, response) => {
-    void handleMcpHttpRequest(request, response, apiClient, disabledTools, githubTokenConfigured).catch((error: unknown) => {
+    void handleMcpHttpRequest(request, response, apiClient, disabledTools, githubTokenConfigured, config.mcpAuthToken).catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`HTTP request handling failed: ${message}`);
 

@@ -8,6 +8,7 @@ const PAGE_SIZE_KEYS = new Set(["per_page", "perPage", "first", "last", "limit",
 
 export interface ServerConfig {
   githubToken?: string;
+  mcpAuthToken?: string;
   host: string;
   port: number;
   disabledTools: ReadonlySet<string>;
@@ -56,6 +57,7 @@ function parseDisabledTools(disabledToolsValue: string | undefined): ReadonlySet
 
 export function loadServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   const githubToken = env.GITHUB_TOKEN?.trim();
+  const mcpAuthToken = env.MCP_AUTH_TOKEN?.trim();
 
   const host = env.MCP_GITHUB_HOST?.trim() || "0.0.0.0";
   const rawPort = env.MCP_GITHUB_PORT?.trim() || "4000";
@@ -68,6 +70,7 @@ export function loadServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
 
   return {
     githubToken: githubToken && githubToken.length > 0 ? githubToken : undefined,
+    mcpAuthToken: mcpAuthToken && mcpAuthToken.length > 0 ? mcpAuthToken : undefined,
     host,
     port,
     disabledTools
