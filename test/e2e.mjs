@@ -491,40 +491,24 @@ async function main() {
     );
 
     // ------------------------------------------- github_discussions_projects_rest
-    // POSITIVE: Must list classic Projects for the github org (possibly empty), OR gracefully pass
-    // when the token lacks read:project scope or the org doesn't expose classic projects (HTTP 404).
-    // The Classic Projects API requires explicit org-level permissions not present in a minimal token.
+    // NEGATIVE: GitHub answers 404 for the classic Projects of the github org (recorded
+    // in fixtures/org-projects.json); the tool must hand that status to the client.
     try {
       const r = await client.callTool({
         name: "github_discussions_projects_rest",
         arguments: { operationId: "projects/list-for-org", parameters: { org: "github", per_page: 1 } }
       });
-      if (r.isError) {
-        const text = firstTextContent(r.content);
-        const msg = text?.text ?? "";
-        if (/404|not found|not accessible/i.test(msg)) {
-          pass("github_discussions_projects_rest → projects/list-for-org skipped (Classic Projects not accessible — requires read:project scope)");
-        } else {
-          fail("github_discussions_projects_rest → expected success, got error", JSON.stringify(r.content));
-        }
+      const msg = firstTextContent(r.content)?.text ?? "";
+      let status = null;
+      try {
+        status = JSON.parse(msg).status ?? null;
+      } catch {
+        // an error text instead of JSON
+      }
+      if (status === 404 || (r.isError && /404|not found/i.test(msg))) {
+        pass("github_discussions_projects_rest → projects/list-for-org reports GitHub's 404");
       } else {
-        const text = firstTextContent(r.content);
-        if (!text) {
-          fail("github_discussions_projects_rest → projects/list-for-org no text content", JSON.stringify(r));
-        } else {
-          try {
-            const parsed = JSON.parse(text.text);
-            if (parsed.status === 200 && Array.isArray(parsed.data)) {
-              pass("github_discussions_projects_rest → projects/list-for-org succeeded");
-            } else if (parsed.status === 404) {
-              pass("github_discussions_projects_rest → projects/list-for-org skipped (Classic Projects not accessible — requires read:project scope)");
-            } else {
-              fail("github_discussions_projects_rest → projects/list-for-org unexpected response shape", text.text.slice(0, 200));
-            }
-          } catch {
-            fail("github_discussions_projects_rest → projects/list-for-org response is not valid JSON", text.text.slice(0, 200));
-          }
-        }
+        fail("github_discussions_projects_rest → projects/list-for-org expected GitHub's 404", msg.slice(0, 200));
       }
     } catch (e) {
       fail("github_discussions_projects_rest → projects/list-for-org unexpected exception", e.message);
@@ -549,47 +533,13 @@ async function main() {
     );
 
     // ------------------------------------------- github_codespaces_rest
-    // POSITIVE: Must return codespace list (possibly empty), OR gracefully pass when the
-    // token lacks the "Codespaces" repository permission (HTTP 401/403).
-    // Note: "Codespaces" is a repository permission (Repository tab in the UI), not the
-    // Account permission "Codespaces user secrets". It only appears in the UI when
-    // "All repositories" access is selected. With "Public repositories" access, no
-    // repository permissions are configurable, so 401/403 is the expected result.
-    try {
-      const r = await client.callTool({
-        name: "github_codespaces_rest",
-        arguments: { operationId: "codespaces/list-for-authenticated-user", parameters: { per_page: 1 } }
-      });
-      if (r.isError) {
-        const text = firstTextContent(r.content);
-        const msg = text?.text ?? "";
-        if (/401|403|forbidden|unauthorized|permission|not authorized/i.test(msg)) {
-          pass("github_codespaces_rest → codespaces/list-for-authenticated-user skipped (Codespaces repository permission not granted — expected with Public repositories access)");
-        } else {
-          fail("github_codespaces_rest → unexpected error", msg.slice(0, 200));
-        }
-      } else {
-        const text = firstTextContent(r.content);
-        if (!text) {
-          fail("github_codespaces_rest → no text content", JSON.stringify(r));
-        } else {
-          try {
-            const parsed = JSON.parse(text.text);
-            if (parsed.status === 200 && typeof parsed.data?.total_count === "number") {
-              pass("github_codespaces_rest → codespaces/list-for-authenticated-user succeeded");
-            } else if (parsed.status === 401 || parsed.status === 403) {
-              pass("github_codespaces_rest → codespaces/list-for-authenticated-user skipped (Codespaces repository permission not granted — expected with Public repositories access)");
-            } else {
-              fail("github_codespaces_rest → unexpected response shape", text.text.slice(0, 200));
-            }
-          } catch {
-            fail("github_codespaces_rest → response is not valid JSON", text.text.slice(0, 200));
-          }
-        }
-      }
-    } catch (e) {
-      fail("github_codespaces_rest → unexpected exception", e.message);
-    }
+    // POSITIVE: Must return the codespace list of the authenticated user.
+    await testRestFamily(
+      "github_codespaces_rest",
+      "codespaces/list-for-authenticated-user",
+      { per_page: 1 },
+      (p) => p.status === 200 && typeof p.data?.total_count === "number"
+    );
 
     // ------------------------------------------- github_rest_misc
     // POSITIVE: Must return rate-limit info for the authenticated user.

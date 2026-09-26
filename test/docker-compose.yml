@@ -1,27 +1,40 @@
+# End-to-end stack: test-client → mcp-github → fake-github. Both networks are
+# internal, so no container of this stack reaches the internet: every GitHub
+# call of mcp-github ends at the simulation, and a test can never touch the
+# real GitHub or need a real token.
 services:
+  fake-github:
+    build:
+      context: ..
+      dockerfile: test/fake-github/Dockerfile
+    networks:
+      - mcp-github-upstream
+    environment:
+      SIMULATED_GITHUB_TOKEN: simulated-github-token-for-the-test-stack-only
+    healthcheck:
+      test: ["CMD", "/usr/bin/node", "-e", "fetch('http://127.0.0.1:8080/healthz').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
   mcp-github:
     build:
       context: ..
       dockerfile: Dockerfile
     image: mwaeckerlin/mcp-github
-    # SECURITY: mcp-github sits on one bridge network toward the test-client.
-    # The GITHUB_TOKEN is only present as an env var in this container and is
-    # never transmitted to the test-client container or accessible from it.
-    # All GitHub API calls go over external HTTPS (not through test-client's
-    # network segment) so the token cannot be observed by the test client.
+    # SECURITY: the GITHUB_TOKEN exists only in this container. The test-client
+    # shares the MCP network with it and has no route to fake-github.
     networks:
       - mcp-github-test-client
+      - mcp-github-upstream
     environment:
-      # GITHUB_TOKEN must be a valid fine-grained or classic PAT.
-      # Fine-grained PAT with "Public repositories" access needs NO permissions.
-      # All tests pass or gracefully skip without any permissions granted.
-      # Optional: select "All repositories" and add Repository permission
-      # "Codespaces" (read) to fully run the codespaces test instead of skipping.
-      # Note: "Codespaces" (repo permission) ≠ "Codespaces user secrets" (account/secrets).
-      # Set GITHUB_E2E_TOKEN before running: export GITHUB_E2E_TOKEN=github_pat_...
-      GITHUB_TOKEN: ${GITHUB_E2E_TOKEN:?GITHUB_E2E_TOKEN is required — export GITHUB_E2E_TOKEN=ghp_...}
+      GITHUB_TOKEN: simulated-github-token-for-the-test-stack-only
+      GITHUB_API_URL: http://fake-github:8080
       MCP_GITHUB_HOST: 0.0.0.0
       MCP_GITHUB_PORT: 4000
+    depends_on:
+      fake-github:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "/usr/bin/node", "-e", "fetch('http://127.0.0.1:4000/healthz').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
       interval: 5s
@@ -32,9 +45,6 @@ services:
     build:
       context: ..
       dockerfile: test/Dockerfile
-    # test-client is on the mcp-github-test-client network only.
-    # It can reach mcp-github by container DNS name (mcp-github:4000)
-    # but has no route to the external internet and no access to GITHUB_TOKEN.
     networks:
       - mcp-github-test-client
     environment:
@@ -43,8 +53,10 @@ services:
       mcp-github:
         condition: service_healthy
 
-# The mcp-github-test-client bridge network carries only MCP traffic between
-# test-client and mcp-github.  The GITHUB_TOKEN is confined to the mcp-github
-# container env and never transmitted on this network segment.
 networks:
+  # MCP traffic between test-client and mcp-github only
   mcp-github-test-client:
+    internal: true
+  # GitHub API traffic between mcp-github and the simulation only
+  mcp-github-upstream:
+    internal: true

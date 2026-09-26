@@ -1,12 +1,12 @@
 FROM mwaeckerlin/nodejs-build AS modules
 ADD --chown=${BUILD_USER} package.json package.json
 ADD --chown=${BUILD_USER} package-lock.json package-lock.json
-RUN NODE_ENV=production npm install
+RUN --mount=type=cache,target=/home/coder/.npm,uid=101,gid=1001 NODE_ENV=production npm install
 
 FROM modules AS build
-RUN NODE_ENV=development npm install
+RUN --mount=type=cache,target=/home/coder/.npm,uid=101,gid=1001 NODE_ENV=development npm install
 ADD --chown=${BUILD_USER} . .
-RUN NODE_ENV=production npm run build
+RUN NODE_ENV=production npm run build:ts
 
 FROM mwaeckerlin/nodejs AS production
 EXPOSE 4000

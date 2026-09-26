@@ -57,7 +57,7 @@ node "GitHub API" {
 ### Discovery
 - `github_rest_list_operations`: lists allowlisted GitHub OpenAPI operation IDs and their mapped family.
 
-### REST tool families (full API coverage)
+### REST tool families
 All GitHub REST operations from `@octokit/openapi` are mapped into one of these families:
 - `github_repositories_rest`
 - `github_branches_rest`
@@ -116,7 +116,7 @@ Each REST family tool takes:
 }
 ```
 
-## How To Use Through MCP
+## Usage through MCP
 
 Use this sequence for reliable MCP usage from an agent.
 
@@ -137,11 +137,9 @@ Call tool `github_rest_list_operations` with:
 }
 ```
 
-Then choose the operation ID you need from `operations[]`.
-For creating issues, this is typically `issues/create`.
-Each operation item also includes `method`, `path`, and `parameterNames` so users can see which route/query/body names are expected before calling the family tool.
+Then choose the operation ID you need from `operations[]`. For creating issues, this is typically `issues/create`. Each operation item also includes `method`, `path`, and `parameterNames` so users can see which route/query/body names are expected before calling the family tool.
 
-### Where all parameters come from
+### Parameter sources
 
 For each REST call, parameters are discovered and validated using this chain:
 
@@ -157,7 +155,7 @@ Practical guidance:
 - Use the returned `parameterNames` as your parameter checklist.
 - If unsure about optional vs required fields for that operation, verify against the GitHub REST endpoint docs for the same operation ID and path.
 
-### 3) Execute the family tool with validated parameters
+### 3) Execute the family tool
 
 To create a new issue in `mwaeckerlin/mcp-github`, call tool `github_issues_rest`:
 
@@ -237,7 +235,7 @@ Tool: `github_pull_requests_rest`
     "repo": "mcp-github",
     "title": "Example PR via MCP",
     "head": "feature-branch",
-    "base": "main",
+    "base": "master",
     "body": "Created through mcp-github"
   }
 }
@@ -247,12 +245,13 @@ Tool: `github_pull_requests_rest`
 
 > Production rule: keep `GITHUB_TOKEN` server-side only.
 
-### Server configuration (MCP GitHub server process)
+### Server configuration
 
 | Variable | Required | Description |
 |---|---|---|
 | `GITHUB_TOKEN` | no | GitHub token used by the server (never passed to sandbox); if missing, server starts in degraded mode: public read calls can work, while private and write operations fail |
 | `MCP_AUTH_TOKEN` | no | Shared secret token for MCP endpoint authentication; if set, all MCP requests must supply this token via `Authorization: Bearer <token>` header or `?token=<token>` query parameter; `/healthz` is exempt |
+| `GITHUB_API_URL` | no | Base URL of the GitHub API for REST and GraphQL (default `https://api.github.com`); set it for a GitHub Enterprise Server, for example `https://github.example.com/api/v3`; an address without `http://` or `https://` stops the start with an error; an `http://` address sends `GITHUB_TOKEN` unencrypted and belongs on a closed network only, like the test stack |
 | `MCP_GITHUB_HOST` | no | Bind host (default `0.0.0.0`) |
 | `MCP_GITHUB_PORT` | no | Bind port (default `4000`) |
 | `DISABLE_TOOLS` | no | Comma-separated MCP tool names to disable |
@@ -261,28 +260,28 @@ Tool: `github_pull_requests_rest`
 
 When `MCP_AUTH_TOKEN` is set on the server, the sandbox must present the same token in every MCP request. The `/healthz` endpoint is not protected and can always be polled for readiness.
 
-**Server side** — set the shared secret:
+On the server, set the shared secret:
 ```bash
 export MCP_AUTH_TOKEN=$(openssl rand -hex 32)
 ```
 
-**Client side** — pass the token via HTTP header (recommended):
-```
+On the client, pass the token in the HTTP header (recommended):
+```http
 Authorization: Bearer <token>
 ```
 
 Or via query parameter (alternative):
-```
+```text
 http://mcp-github:4000/?token=<token>
 ```
 
-**Client environment variable** — expose the token to the sandbox:
+The sandbox receives the token in its environment:
 
 | Variable | Required | Description |
 |---|---|---|
 | `MCP_AUTH_TOKEN` | no | Shared secret that the sandbox must present when `MCP_AUTH_TOKEN` is also set on the server |
 
-**Security considerations:**
+Handle the token like a password:
 - Generate tokens with a cryptographically secure random source (e.g., `openssl rand -hex 32`).
 - Rotate tokens periodically and whenever they may have been exposed.
 - Never commit tokens to source control.
@@ -311,42 +310,19 @@ http://mcp-github:4000/?token=<token>
 - **Client configuration** only tells the sandbox where MCP lives.
 - **Tool-call parameters** are per-invocation validated `arguments` and cannot override server auth/config.
 
-## Test Token Requirements and Risks
+## Token Permissions
 
-### Required `GITHUB_E2E_TOKEN` permissions
+### Read permissions
 
-Run the E2E test suite with:
+Create a fine-grained Personal Access Token at <https://github.com/settings/tokens?type=beta>; the [GitHub fine-grained PAT permission reference](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens) lists every permission.
 
-```bash
-export GITHUB_E2E_TOKEN=ghp_...
-cd test && docker compose up
-```
+Reading public repositories, public organizations and the authenticated user needs no permission with a "Public repositories" fine-grained token: for `users/get-authenticated` and GraphQL `viewer { login }`, *"the fine-grained token does not require any permissions"* ([GitHub docs](https://docs.github.com/en/rest/users/users#get-the-authenticated-user--fine-grained-access-tokens)). Listing codespaces (`GET /user/codespaces`) needs *"All repositories"* access and the **Repository** permission "Codespaces" (read); the *Account* permission "Codespaces user secrets" is a different one and not needed. A classic PAT needs no scope for reading public data, and the `codespace` scope for codespaces.
 
-The token is set server-side only (`GITHUB_TOKEN` in the `mcp-github` container). The `test-client` container never sees it.
+GitHub answers HTTP 401 to an invalid or expired token, also on endpoints that need no token at all.
 
-#### Fine-grained Personal Access Token (recommended)
+### Write permissions
 
-Create a fine-grained PAT at <https://github.com/settings/tokens?type=beta>.
-See the [GitHub fine-grained PAT permission reference](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens) for the full list.
-
-**Repository access:** Select *"All repositories"* or *"Public Repositories"* — all repository tests access public repos (`octocat/Hello-World`, `mwaeckerlin/mcp-github`), which the GitHub API allows with no repository permission at all.
-
-**No permissions are required** for the E2E tests with a "Public repositories" fine-grained token:
-- `users/get-authenticated` and GraphQL `viewer { login }`: *"The fine-grained token does not require any permissions"* ([GitHub docs](https://docs.github.com/en/rest/users/users#get-the-authenticated-user--fine-grained-access-tokens)).
-- All repository/branch/commit/issue/PR/release/action/search tests access only public repos (`octocat/Hello-World`, `mwaeckerlin/mcp-github`) and the public `github` org — no permissions required per GitHub's API.
-- The codespaces test (`GET /user/codespaces`) **gracefully skips** (passes) when the token lacks the "Codespaces" repository permission. To fully run it, select *"All repositories"* access and add the "Codespaces" repository permission (read) — this appears under **Repository permissions** in the GitHub UI (not Account permissions), and has nothing to do with secrets.
-
-> **Note on "Codespaces user secrets":** This is an *Account* permission about secrets stored inside codespaces. It is a completely different thing from the *Repository* permission "Codespaces" and is not needed here.
-
-#### Classic Personal Access Token
-
-If you use a classic PAT (legacy), no scopes are needed for the basic tests. Add the `codespace` scope only if you want the codespaces test to run fully.
-
-> **Note:** GitHub's API returns HTTP 401 if you supply *any* token that is invalid or expired, even for public-data endpoints. Always use a fresh, valid token.
-
-### Required token permissions for write workflows in public repositories
-
-These permissions apply when the agent should perform write actions (branch, commit/push, issues, PRs) through this MCP server.
+These permissions apply when the agent performs write actions in public repositories (branch, commit/push, issues, PRs) through this MCP server.
 
 #### Fine-grained PAT (recommended)
 
@@ -373,36 +349,28 @@ Notes:
 - For pure checkout of a public repository, no token is required.
 - Write operations still require normal GitHub repository access (for example collaborator/team rights).
 
-### What the tests do to your GitHub account
-
-**All E2E tests are strictly read-only.** They only call `GET` endpoints. No data is created, modified, or deleted. Specifically:
-
-- No repositories, issues, PRs, or comments are created.
-- No webhooks, deployments, or labels are written.
-- No organization settings are changed.
-- No starred repos, notifications, or subscriptions are altered.
-- Codespace listing only reads; no codespace is started or stopped.
-- Rate-limit info is read (counts against your API quota but does not change any resource).
-
-**Risk assessment:** There is no risk of data loss or unintended side-effects regardless of what permissions your token carries. Even a token with full write permissions will not cause any mutations because the tests only use read operations.
-
 ## Installation and Usage
 
 ```bash
-npm install
-npm run build
-npm start
+$ npm install
+$ npm run build:ts   # compiles TypeScript to dist/
+$ npm run build      # builds the Docker image
+$ npm start
 ```
 
 Dev mode:
+
 ```bash
-npm run dev
+$ npm run dev
 ```
 
 Tests:
+
 ```bash
-npm test
+$ npm test
 ```
+
+`npm test` runs the feature register check, the unit tests, the image contract and both end-to-end suites in `test/`; the pipeline runs the same command. The main suite (`test/docker-compose.yml`) sends every tool call through the server to `test/fake-github`, a simulated GitHub API that answers with responses recorded from the public GitHub API and rejects requests without the simulated token; `test/fake-github/record-fixtures.py` records them again, without a token. Its networks are internal: no container of the stack reaches the internet, so no test touches the real GitHub or needs a real token. The second suite (`test/docker-compose.auth.yml`) covers `MCP_AUTH_TOKEN` and the degraded mode without a GitHub token. `npm run deploy` pushes the image; the image is built, tested and published for `linux/amd64` and `linux/arm64` by the reusable workflow of [mwaeckerlin/scratch](https://github.com/mwaeckerlin/scratch#publishing-on-docker-hub).
 
 ## Safe Usage Rules
 
@@ -423,13 +391,13 @@ npm test
 | `Tool disabled by DISABLE_TOOLS` | Tool explicitly disabled | Remove from `DISABLE_TOOLS` or call different tool |
 | `GitHub API error (422)` with assignees | Wrong assignee username or missing `agent_assignment` | Use the dedicated `github_copilot_assign_issue` tool |
 
-### Assigning Copilot cloud agent to issues
+### Copilot cloud agent
 
 Use the dedicated `github_copilot_assign_issue` tool to assign GitHub Copilot cloud agent to an existing issue. Copilot will research the issue, create an implementation plan, make code changes on a branch, and open a pull request.
 
 Requires a Copilot plan (Pro, Pro+, Business, or Enterprise) with cloud agent enabled in the repository. This feature is in **public preview**.
 
-**Why not use `issues/add-assignees` directly?** The REST API requires the assignee `"copilot-swe-agent[bot]"` (including the `[bot]` suffix) and an `agent_assignment` body object. The `github_copilot_assign_issue` tool handles this automatically.
+The REST operation `issues/add-assignees` requires the assignee `"copilot-swe-agent[bot]"` (including the `[bot]` suffix) and an `agent_assignment` body object; the `github_copilot_assign_issue` tool sets both.
 
 Minimal call:
 

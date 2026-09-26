@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { pathToFileURL } from "node:url";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -16,13 +17,24 @@ const MISSING_GITHUB_TOKEN_MESSAGE =
 
 type ApiClient = Pick<GitHubApiClient, "callRestByOperationId" | "callGraphQl" | "assignCopilotToIssue">;
 
+/**
+ * Compares a presented token with the configured one in constant time: a
+ * comparison that stops at the first differing character tells an attacker
+ * through the response time how much of a guess is right.
+ */
+export function sameToken(provided: string | undefined, expected: string): boolean {
+  const given = Buffer.from(provided ?? "");
+  const wanted = Buffer.from(expected);
+  return given.length === wanted.length && timingSafeEqual(given, wanted);
+}
+
 function respondJson(response: ServerResponse, statusCode: number, body: Record<string, unknown>): void {
   response.writeHead(statusCode, { "Content-Type": "application/json" });
   response.end(JSON.stringify(body));
 }
 
-function createApiClient(githubToken: string | undefined): ApiClient {
-  return new GitHubApiClient(githubToken);
+function createApiClient(githubToken: string | undefined, githubApiUrl: string): ApiClient {
+  return new GitHubApiClient(githubToken, githubApiUrl);
 }
 
 export async function runToolWithArguments(
@@ -160,7 +172,7 @@ async function handleMcpHttpRequest(
     const queryToken = requestUrl.searchParams.get("token") ?? undefined;
     const providedToken = bearerToken ?? queryToken;
 
-    if (providedToken !== mcpAuthToken) {
+    if (!sameToken(providedToken, mcpAuthToken)) {
       respondJson(response, 401, { error: "unauthorized", message: "Valid MCP_AUTH_TOKEN required" });
       return;
     }
@@ -188,7 +200,7 @@ async function handleMcpHttpRequest(
 export async function main(): Promise<void> {
   const config = loadGatewayConfig();
   const disabledTools = loadDisabledToolsFromEnv();
-  const apiClient = createApiClient(config.githubToken);
+  const apiClient = createApiClient(config.githubToken, config.githubApiUrl);
   const githubTokenConfigured = Boolean(config.githubToken);
 
   if (!githubTokenConfigured) {

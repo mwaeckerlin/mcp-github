@@ -27,6 +27,19 @@ test("loadServerConfigFromEnv: defaults host to 0.0.0.0 and port to 4000", () =>
   assert.equal(config.disabledTools.size, 0);
 });
 
+test("loadServerConfigFromEnv: defaults the GitHub API address to api.github.com", () => {
+  assert.equal(loadServerConfigFromEnv({}).githubApiUrl, "https://api.github.com");
+});
+
+test("loadServerConfigFromEnv: reads GITHUB_API_URL without a trailing slash", () => {
+  assert.equal(loadServerConfigFromEnv({ GITHUB_API_URL: "http://fake-github:8080/" }).githubApiUrl, "http://fake-github:8080");
+});
+
+test("loadServerConfigFromEnv: throws when GITHUB_API_URL is no http or https address", () => {
+  assert.throws(() => loadServerConfigFromEnv({ GITHUB_API_URL: "ftp://example.com" }), /GITHUB_API_URL/);
+  assert.throws(() => loadServerConfigFromEnv({ GITHUB_API_URL: "not a url" }), /GITHUB_API_URL/);
+});
+
 test("loadServerConfigFromEnv: accepts missing GITHUB_TOKEN and marks token as undefined", () => {
   const config = loadServerConfigFromEnv({});
   assert.equal(config.githubToken, undefined);

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
-import { runToolWithArguments } from "./server.js";
+import { runToolWithArguments, sameToken } from "./server.js";
 import { getToolDefinitions, getOperationFamily, listOperationMappings } from "./tools.js";
 import { REST_TOOL_FAMILY_NAMES } from "./tool-families.js";
 
@@ -323,5 +323,22 @@ test("without token, listOperationMappings filters to only GET/HEAD operations",
   for (const op of limitedOps.operations) {
     assert.ok(op.method === "GET" || op.method === "HEAD", `Should only have GET or HEAD, got ${op.method}`);
   }
+});
+
+test("sameToken: accepts the configured token", () => {
+  assert.equal(sameToken("s3cret-token", "s3cret-token"), true);
+});
+
+test("sameToken: rejects a different token of the same length", () => {
+  assert.equal(sameToken("s3cret-tokex", "s3cret-token"), false);
+});
+
+test("sameToken: rejects a shorter or longer token", () => {
+  assert.equal(sameToken("s3cret", "s3cret-token"), false);
+  assert.equal(sameToken("s3cret-token-and-more", "s3cret-token"), false);
+});
+
+test("sameToken: rejects a missing token", () => {
+  assert.equal(sameToken(undefined, "s3cret-token"), false);
 });
 

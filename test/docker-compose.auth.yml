@@ -1,0 +1,38 @@
+# MCP_AUTH_TOKEN and the degraded mode, end to end and without a GitHub token:
+# the server has no GITHUB_TOKEN, so this stack runs anywhere, the GitHub
+# Actions runners included.
+services:
+  mcp-github-auth:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: mwaeckerlin/mcp-github
+    networks:
+      - mcp-github-auth
+    environment:
+      MCP_AUTH_TOKEN: e2e-auth-token-for-the-test-stack-only
+      MCP_GITHUB_HOST: 0.0.0.0
+      MCP_GITHUB_PORT: 4000
+    healthcheck:
+      test: ["CMD", "/usr/bin/node", "-e", "fetch('http://127.0.0.1:4000/healthz').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  test-client-auth:
+    build:
+      context: ..
+      dockerfile: test/Dockerfile
+    command: ["e2e-auth.mjs"]
+    networks:
+      - mcp-github-auth
+    environment:
+      MCP_GITHUB_URL: http://mcp-github-auth:4000
+      MCP_AUTH_TOKEN: e2e-auth-token-for-the-test-stack-only
+    depends_on:
+      mcp-github-auth:
+        condition: service_healthy
+
+networks:
+  mcp-github-auth:
+    internal: true

@@ -8,6 +8,7 @@ const PAGE_SIZE_KEYS = new Set(["per_page", "perPage", "first", "last", "limit",
 
 export interface ServerConfig {
   githubToken?: string;
+  githubApiUrl: string;
   mcpAuthToken?: string;
   host: string;
   port: number;
@@ -68,8 +69,16 @@ export function loadServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
 
   const disabledTools = parseDisabledTools(env.DISABLE_TOOLS);
 
+  // the GitHub API address: api.github.com, a GitHub Enterprise server, or the
+  // simulated GitHub of the tests
+  const githubApiUrl = (env.GITHUB_API_URL?.trim() || "https://api.github.com").replace(/\/+$/, "");
+  if (!/^https?:\/\/[^\s/]+/.test(githubApiUrl)) {
+    throw new Error("GITHUB_API_URL must be an http or https address");
+  }
+
   return {
     githubToken: githubToken && githubToken.length > 0 ? githubToken : undefined,
+    githubApiUrl,
     mcpAuthToken: mcpAuthToken && mcpAuthToken.length > 0 ? mcpAuthToken : undefined,
     host,
     port,
