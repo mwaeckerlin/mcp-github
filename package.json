@@ -1,6 +1,6 @@
 {
   "name": "@mwaeckerlin/mcp-github",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Standalone secure MCP GitHub server with server-side authentication.",
   "main": "dist/server.js",
   "scripts": {

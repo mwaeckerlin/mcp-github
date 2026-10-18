@@ -16,8 +16,9 @@ ENV NODE_OPTIONS=--use-bundled-ca
 COPY --from=build /app/dist /app/dist
 COPY --from=modules /app/node_modules node_modules
 COPY --from=build /app/SKILL.md /app/skills/mcp-github/SKILL.md
+# exec form: the image has no shell to run the shell form
 HEALTHCHECK --interval=5s --timeout=30s --start-period=10s --retries=60 \
-  CMD node -e "fetch('http://127.0.0.1:4000/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD ["/usr/bin/node", "-e", "fetch('http://127.0.0.1:4000/healthz').then(async (r)=>{console.log(await r.text());process.exit(r.ok?0:1)}).catch((e)=>{console.log('not answering: '+e.message);process.exit(1)})"]
 CMD ["dist/server.js"]
 
 FROM production

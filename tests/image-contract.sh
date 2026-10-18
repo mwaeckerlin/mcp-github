@@ -59,6 +59,24 @@ for image in "$@"; do
     else
         _fail "${image}_skill_shipped" "/app/skills/mcp-github/SKILL.md missing or different from SKILL.md"
     fi
+    # the image's own HEALTHCHECK turns the container healthy, also without a
+    # GitHub token; it must run without a shell, because the image has none
+    # (regression: the shell form `CMD node -e …` never ran, Swarm killed the
+    # task as unhealthy while the server listened)
+    NAME="mcp-github-health-$$"
+    docker run -d --name "${NAME}" --pull=never --network none --health-interval=2s "${image}" > /dev/null
+    STATE=""
+    for _ in $(seq 1 30); do
+        STATE=$(docker inspect --format '{{.State.Health.Status}}' "${NAME}" 2>/dev/null)
+        [[ "${STATE}" == "healthy" ]] && break
+        sleep 1
+    done
+    if [[ "${STATE}" == "healthy" ]]; then
+        _pass "${image}_healthy_without_token"
+    else
+        _fail "${image}_healthy_without_token" "health «${STATE}»: $(docker inspect --format '{{range .State.Health.Log}}{{.Output}}{{end}}' "${NAME}" 2>&1 | tail -n 3)"
+    fi
+    docker rm -f "${NAME}" > /dev/null 2>&1
 done
 
 echo ""

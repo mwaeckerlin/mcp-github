@@ -16,4 +16,5 @@ Numbered register of every feature; a number is never reused. Every feature is c
 - **F12 — Agent instructions in the image.** `SKILL.md` ships in the image at `/app/skills/mcp-github/SKILL.md`.
 - **F13 — Headless image.** The image contains no shell, no busybox and no perl.
 - **F14 — Published for amd64 and arm64.** Every push builds the image natively for both architectures and publishes it under one tag on Docker Hub, with the reusable workflow of `mwaeckerlin/scratch`.
+- **F16 — Health check in the image.** The image carries a `HEALTHCHECK` that runs without a shell: it asks `/healthz` and reports healthy whenever the server answers, also without `GITHUB_TOKEN`; its output shows the answer of `/healthz`. A compose file or a Swarm stack needs no healthcheck of its own.
 - **F15 — GitHub Enterprise Server.** `GITHUB_API_URL` points REST and GraphQL at another GitHub API than `https://api.github.com`; an address without `http://` or `https://` stops the start with an error.

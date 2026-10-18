@@ -13,11 +13,7 @@ services:
       MCP_AUTH_TOKEN: e2e-auth-token-for-the-test-stack-only
       MCP_GITHUB_HOST: 0.0.0.0
       MCP_GITHUB_PORT: 4000
-    healthcheck:
-      test: ["CMD", "/usr/bin/node", "-e", "fetch('http://127.0.0.1:4000/healthz').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
+    # no healthcheck here: the test client waits for the HEALTHCHECK of the image
 
   test-client-auth:
     build:

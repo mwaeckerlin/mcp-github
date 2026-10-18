@@ -1,5 +1,9 @@
 # Changelog
 
+- 2026-10-18 **1.1.2**
+    - The container turns healthy in Docker Swarm: the image's health check needed a shell, which the image does not carry, so Swarm stopped every task as unhealthy while the server answered; it now runs without one, also without a GitHub token, and the test stacks rely on it
+    - The development commands in the README can be copied as they stand, without a `$ ` prompt
+
 - 2026-09-26 **1.1.1**
     - A guessed `MCP_AUTH_TOKEN` can no longer be narrowed down character by character: the server compares the presented token in constant time
     - `GITHUB_API_URL` connects the server to a GitHub Enterprise Server

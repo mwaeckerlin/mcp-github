@@ -294,6 +294,7 @@ Handle the token like a password:
 - With token configured: `{ "ok": true, "status": "ready", "githubTokenConfigured": true }`
 - Without token: `{ "ok": true, "status": "degraded", "githubTokenConfigured": false, "message": "...set GITHUB_TOKEN..." }`
 - In degraded mode, `github_rest_list_operations` still works and is filtered to read-only (`GET`/`HEAD`) operations; public read calls can work, while write/private operations fail.
+- The image carries a `HEALTHCHECK` that asks `/healthz` and prints its answer; it runs `/usr/bin/node` directly, because the image has no shell. The container is healthy in both modes, so a compose file or a Swarm stack needs no healthcheck of its own.
 
 ### Client configuration (sandbox/agent environment)
 
@@ -352,22 +353,22 @@ Notes:
 ## Installation and Usage
 
 ```bash
-$ npm install
-$ npm run build:ts   # compiles TypeScript to dist/
-$ npm run build      # builds the Docker image
-$ npm start
+npm install
+npm run build:ts   # compiles TypeScript to dist/
+npm run build      # builds the Docker image
+npm start
 ```
 
 Dev mode:
 
 ```bash
-$ npm run dev
+npm run dev
 ```
 
 Tests:
 
 ```bash
-$ npm test
+npm test
 ```
 
 `npm test` runs the feature register check, the unit tests, the image contract and both end-to-end suites in `test/`; the pipeline runs the same command. The main suite (`test/docker-compose.yml`) sends every tool call through the server to `test/fake-github`, a simulated GitHub API that answers with responses recorded from the public GitHub API and rejects requests without the simulated token; `test/fake-github/record-fixtures.py` records them again, without a token. Its networks are internal: no container of the stack reaches the internet, so no test touches the real GitHub or needs a real token. The second suite (`test/docker-compose.auth.yml`) covers `MCP_AUTH_TOKEN` and the degraded mode without a GitHub token. `npm run deploy` pushes the image; the image is built, tested and published for `linux/amd64` and `linux/arm64` by the reusable workflow of [mwaeckerlin/scratch](https://github.com/mwaeckerlin/scratch#publishing-on-docker-hub).

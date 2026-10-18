@@ -52,6 +52,8 @@ Register of all tests, sorted by the [FEATURES.md](FEATURES.md) number each test
 
 - **F12** `tests/image-contract.sh` › skill_shipped — `/app/skills/mcp-github/SKILL.md` in the image equals `SKILL.md`.
 - **F13** `tests/image-contract.sh` › no sh, no bash, no busybox, no perl — the image is headless.
+- **F16** `tests/image-contract.sh` › healthy_without_token — the image started without `GITHUB_TOKEN` and without a network turns healthy from its own `HEALTHCHECK` (regression: the shell form needed `/bin/sh`, which the image does not carry, and Swarm stopped the task as unhealthy).
+- **F16** `test/docker-compose.yml`, `test/docker-compose.auth.yml` — the test client waits for the HEALTHCHECK of the image; the compose files set none of their own.
 
 ## Workflow contract
 
